@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSNF · Generador de Menú IA v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --verde:#1B5E20;--verde-m:#2E7D32;--verde-c:#C8E6C9;--verde-mc:#E8F5E9;
+  --crema:#FAFAF7;--texto:#1a1a1a;--gris:#6b7280;--borde:#e5e7eb;
+  --naranja:#E65100;--azul:#1565C0;--rojo:#B71C1C;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--crema);color:var(--texto);min-height:100vh;}
+header{background:var(--verde);padding:18px 40px;display:flex;align-items:center;justify-content:space-between;}
+<header h1{font-family:'Playfair Display',serif;color:white;font-size:20px;font-weight:600;}
+header span{color:var(--verde-c);font-size:12px;}
+.tabs{display:flex;background:white;border-bottom:2px solid var(--borde);padding:0 40px;}
+.tab{padding:14px 20px;font-size:13px;font-weight:600;color:var(--gris);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;}
+.tab.active{color:var(--verde-m);border-bottom-color:var(--verde-m);}
+.container{max-width:1000px;margin:0 auto;padding:32px 20px;}
+.panel{display:none;}.panel.active{display:block;}
+.card{background:white;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,.06);overflow:hidden;margin-bottom:20px;}
+.card-header{background:var(--verde);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;}
+.card-header h2{font-family:'Playfair Display',serif;color:white;font-size:16px;}
+.card-header span{color:var(--verde-c);font-size:12px;}
+.card-body{padding:24px;}
+.upload-zone{border:2px dashed var(--verde-c);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .3s;position:relative;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--verde-m);background:var(--verde-mc);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-zone .icon{width:56px;height:56px;background:var(--verde-mc);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:24px;}
+.upload-zone h3{font-family:'Playfair Display',serif;font-size:18px;color:var(--verde);margin-bottom:6px;}
+.upload-zone p{color:var(--gris);font-size:13px;}
+.sheets-section{background:var(--verde-mc);border-radius:12px;padding:20px;margin-bottom:16px;}
+.sheets-section h3{font-size:14px;font-weight:700;color:var(--verde);margin-bottom:12px;}
+.sheets-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+.sheets-row input,.sheets-row select{padding:10px 14px;border:1.5px solid var(--borde);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:white;}
+.sheets-row input{flex:2;min-width:200px;}
+.sheets-row select{flex:1;min-width:140px;}
+.sheets-row input:focus,.sheets-row select:focus{outline:none;border-color:var(--verde-m);}
+.btn-sheets{padding:10px 18px;background:var(--verde);color:white;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s;}
+.btn-sheets:hover{background:var(--verde-m);}
+.pacientes-lista{display:none;max-height:280px;overflow-y:auto;border:1.5px solid var(--borde);border-radius:8px;background:white;margin-top:8px;}
+.paciente-row{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--borde);transition:background .15s;}
+.paciente-row:hover{background:var(--verde-mc);}
+.paciente-row .p-nombre{font-weight:600;font-size:13px;}
+.paciente-row .p-info{font-size:11px;color:var(--gris);margin-top:2px;}
+.paciente-card{display:none;background:white;border-radius:10px;padding:14px 18px;border-left:4px solid var(--verde-m);margin-top:10px;}
+.paciente-card .nombre{font-weight:700;font-size:14px;color:var(--verde);margin-bottom:6px;}
+.tag{display:inline-block;background:var(--verde-mc);color:var(--verde-m);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin:2px;}
+.tag.rojo{background:#FFEBEE;color:var(--rojo);}
+.tag.naranja{background:#FFF3E0;color:var(--naranja);}
+.ficha-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--borde);}
+.ficha-item{background:white;padding:10px 14px;display:flex;gap:8px;}
+.ficha-label{font-size:10px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;min-width:110px;}
+.ficha-valor{font-size:12px;font-weight:500;}
+.ficha-valor.vacio{color:#ccc;font-style:italic;}
+.opciones-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.campo label{display:block;font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;}
+.campo input,.campo select,.campo textarea{width:100%;padding:10px 14px;border:1.5px solid var(--borde);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--texto);background:var(--crema);}
+.campo input:focus,.campo select:focus,.campo textarea:focus{outline:none;border-color:var(--verde-m);background:white;}
+.campo textarea{height:80px;resize:vertical;}
+.campo-full{grid-column:1/-1;}
+.btn-generar{width:100%;background:var(--verde);color:white;border:none;padding:16px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;}
+.btn-generar:hover{background:var(--verde-m);transform:translateY(-1px);}
+.btn-generar:disabled{background:#aaa;cursor:not-allowed;transform:none;}
+.loading{display:none;text-align:center;padding:48px 24px;}
+.spinner{width:48px;height:48px;border:4px solid var(--verde-c);border-top-color:var(--verde);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading strong{display:block;font-family:'Playfair Display',serif;font-size:18px;color:var(--verde);margin-bottom:8px;}
+.loading-steps{display:flex;flex-direction:column;gap:8px;margin-top:20px;text-align:left;max-width:280px;margin-left:auto;margin-right:auto;}
+.loading-step{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--gris);}
+.loading-step.done{color:var(--verde-m);}.loading-step.active{color:var(--texto);}
+.loading-step .dot{width:8px;height:8px;border-radius:50%;background:var(--borde);flex-shrink:0;}
+.loading-step.done .dot{background:var(--verde-m);}
+.loading-step.active .dot{background:var(--verde);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.menu-resultado{display:none;}
+.menu-top{background:var(--verde);border-radius:14px 14px 0 0;padding:20px 28px;display:flex;justify-content:space-between;align-items:center;}
+.menu-top h2{font-family:'Playfair Display',serif;color:white;font-size:18px;}
+.menu-top span{color:var(--verde-c);font-size:12px;}
+.semana-label{background:var(--verde-mc);padding:10px 24px;border:1px solid var(--borde);border-top:none;font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:1px;}
+.dia-card{border-left:1px solid var(--borde);border-right:1px solid var(--borde);border-bottom:1px solid var(--borde);}
+.dia-header{background:#f9fafb;padding:12px 24px;display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none;}
+.dia-header:hover{background:var(--verde-mc);}
+.dia-nombre{font-weight:700;font-size:13px;color:var(--verde);text-transform:uppercase;letter-spacing:1px;flex:1;}
+.dia-arrow{color:var(--verde-m);font-size:11px;transition:transform .3s;}
+.dia-arrow.open{transform:rotate(180deg);}
+.dia-body{padding:16px 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.comida-item{background:var(--crema);border-radius:8px;padding:12px;border-left:3px solid var(--verde-c);}
+.comida-item.d{border-left-color:#FFA726;}
+.comida-item.c{border-left-color:var(--verde-m);}
+.comida-item.n{border-left-color:#5C6BC0;}
+.comida-item.s{border-left-color:#26A69A;}
+.comida-titulo{font-size:10px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.comida-texto{font-size:12px;line-height:1.5;}
+.consejos-box{background:var(--verde-mc);padding:20px 28px;border:1px solid var(--borde);border-top:none;}
+.consejos-box h3{font-family:'Playfair Display',serif;color:var(--verde);font-size:15px;margin-bottom:12px;}
+.consejo{display:flex;gap:8px;margin-bottom:8px;font-size:12px;line-height:1.5;}
+.consejo::before{content:"✦";color:var(--verde-m);font-size:9px;margin-top:3px;flex-shrink:0;}
+.acciones{background:white;border:1px solid var(--borde);border-top:none;border-radius:0 0 14px 14px;padding:16px 24px;display:flex;gap:10px;flex-wrap:wrap;}
+.btn-acc{padding:10px 18px;border-radius:8px;border:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn-acc.p{background:var(--verde);color:white;}
+.btn-acc.s{background:var(--verde-mc);color:var(--verde);border:1.5px solid var(--verde-c);}
+.btn-acc.a{background:#FFF3E0;color:var(--naranja);border:1.5px solid #FFCC80;}
+.btn-acc:hover{opacity:.85;}
+.lista-compra{display:none;margin-top:20px;}
+.lc-header{background:var(--azul);border-radius:14px 14px 0 0;padding:16px 24px;}
+.lc-header h2{font-family:'Playfair Display',serif;color:white;font-size:16px;}
+.lc-grupos{background:white;border:1px solid var(--borde);border-top:none;}
+.lc-grupo{border-bottom:1px solid var(--borde);}
+.lc-grupo-header{background:#f0f4ff;padding:10px 20px;font-size:11px;font-weight:700;color:var(--azul);text-transform:uppercase;}
+.lc-items{padding:8px 20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;}
+.lc-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;transition:opacity .2s;}
+.lc-item input[type=checkbox]{accent-color:var(--verde-m);width:14px;height:14px;cursor:pointer;}
+.lc-footer{background:white;border:1px solid var(--borde);border-top:none;border-radius:0 0 14px 14px;padding:14px 24px;}
+.alert{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:12px;display:none;}
+.alert.e{background:#FFEBEE;color:#C62828;border-left:3px solid #C62828;}
+.alert.ok{background:var(--verde-mc);color:var(--verde);border-left:3px solid var(--verde-m);}
+@media print{body>*:not(#informe-print){display:none!important;}#informe-print{display:block!important;}}
+#informe-print{display:none;font-family:'DM Sans',sans-serif;max-width:800px;margin:0 auto;padding:20px;}
+.inf-header{text-align:center;border-bottom:3px solid #1B5E20;padding-bottom:20px;margin-bottom:24px;}
+.inf-logo{font-family:'Playfair Display',serif;font-size:28px;color:#1B5E20;font-weight:700;}
+.inf-seccion{margin-bottom:20px;}
+.inf-seccion h2{background:#1B5E20;color:white;padding:7px 14px;font-size:12px;border-radius:4px;margin-bottom:10px;}
+.inf-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.inf-campo{display:flex;gap:8px;padding:7px 10px;background:#F5F5F5;border-radius:4px;}
+.inf-campo .lbl{font-size:10px;font-weight:700;color:#666;text-transform:uppercase;min-width:110px;}
+.inf-campo .val{font-size:11px;font-weight:500;}
+.inf-dia{margin-bottom:10px;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;}
+.inf-dia-h{background:#2E7D32;color:white;padding:7px 14px;font-size:12px;font-weight:700;}
+.inf-comidas{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#e0e0e0;}
+.inf-comida{background:white;padding:7px 10px;}
+.inf-comida .ct{font-size:9px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:3px;}
+.inf-comida .cv{font-size:10px;line-height:1.4;}
+.inf-lc-item{font-size:10px;padding:3px 0;display:flex;align-items:center;gap:5px;}
+.inf-lc-item::before{content:"□";font-size:12px;color:#555;}
+@media(max-width:640px){.opciones-grid{grid-template-columns:1fr;}.dia-body{grid-template-columns:1fr;}.lc-items{grid-template-columns:1fr 1fr;}header{padding:14px 16px;}.container{padding:16px 12px;}.tabs{padding:0 12px;overflow-x:auto;}.sheets-row{flex-direction:column;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>PSNF · Generador de Menú IA v3</h1>
+    <span>Paola Sánchez · Farmacéutica y Nutricionista</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="cambiarTab('generador',this)">✨ Generar menú</div>
+  <div class="tab" onclick="cambiarTab('historial',this)">📋 Historial</div>
+</div>
+
+<div class="container">
+  <div class="alert e" id="alertE"></div>
+  <div class="alert ok" id="alertOK"></div>
+
+  <!-- PANEL GENERADOR -->
+  <div class="panel active" id="panel-generador">
+
+    <!-- IMPORTAR DESDE GOOGLE SHEETS -->
+    <div class="card">
+      <div class="card-header">
+        <h2>📊 Importar paciente desde Google Sheets</h2>
+        <span>Datos del test de psnf.es</span>
+      </div>
+      <div class="card-body">
+        <div class="sheets-section">
+          <h3>Paso 1 · Cargar el Google Sheet</h3>
+          <div class="sheets-row">
+            <input type="text" id="sheetUrl" placeholder="URL o ID de Google Sheet (opcional, ya preconfigurado)">
+            <select id="sheetTab">
+              <option value="ambas">Ambas pestañas (Menopausia + Tiroides)</option>
+              <option value="Menopausia">Solo Menopausia</option>
+              <option value="Tiroides">Solo Tiroides</option>
+            </select>
+            <button class="btn-sheets" onclick="cargarDeSheets()">📥 Cargar</button>
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:#888;">
+            ⚠️ La hoja debe ser <b>pública en modo lectura</b> (Compartir → Cualquier persona con el enlace)
+          </div>
+        </div>
+
+        <!-- BUSCADOR -->
+        <div id="buscadorSection" style="display:none;margin-top:16px;">
+          <div style="font-size:13px;font-weight:700;color:var(--verde);margin-bottom:10px;">
+            🔍 Paso 2 · Buscar paciente por email o nombre
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="buscarInput" placeholder="Escribe email o nombre..." 
+              style="flex:1;min-width:200px;padding:10px 14px;border:1.5px solid var(--borde);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;"
+              oninput="filtrarPacientes(this.value)" onkeydown="if(event.key==='Enter')filtrarPacientes(this.value)">
+            <button class="btn-sheets" onclick="filtrarPacientes(document.getElementById('buscarInput').value)">🔍 Buscar</button>
+            <button class="btn-sheets" style="background:#666;" onclick="mostrarTodasPacientes()">Ver todas</button>
+          </div>
+          <div id="contadorResultados" style="font-size:11px;color:var(--gris);margin-top:6px;"></div>
+        </div>
+
+        <div class="pacientes-lista" id="pacientesLista"></div>
+        <div class="paciente-card" id="pacienteImportada"></div>
+      </div>
+    </div>
+
+    <!-- SUBIR EXCEL -->
+    <div class="card">
+      <div class="card-header">
+        <h2>📋 O sube el Excel de la paciente</h2>
+        <span>Plantilla PSNF v4</span>
+      </div>
+      <div class="card-body">
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="cargarExcel(this)">
+          <div class="icon">📋</div>
+          <h3>Arrastra o haz clic para subir</h3>
+          <p>Plantilla PSNF v4 con Analíticas Clínicas (.xlsx)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- FICHA CARGADA -->
+    <div class="card" id="fichaCard" style="display:none;">
+      <div class="card-header">
+        <h2 id="fichaTitle">Ficha de Paciente</h2>
+        <span id="fichaSubtitle"></span>
+      </div>
+      <div class="ficha-grid" id="fichaGrid"></div>
+    </div>
+
+    <!-- OPCIONES -->
+    <div class="card" id="opcionesCard" style="display:none;">
+      <div class="card-header"><h2>⚙️ Configurar el menú</h2></div>
+      <div class="card-body">
+        <div class="opciones-grid">
+          <div class="campo">
+            <label>Semanas a planificar</label>
+            <select id="semanas">
+              <option value="1">1 semana</option>
+              <option value="2">2 semanas</option>
+              <option value="4">4 semanas</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>Nivel de cocina</label>
+            <select id="nivelCocina">
+              <option value="sencillo">Sencillo · máx 20 min</option>
+              <option value="medio" selected>Medio · 30-40 min</option>
+              <option value="elaborado">Elaborado</option>
+            </select>
+          </div>
+          <div class="campo campo-full">
+            <label>Notas adicionales para este menú</label>
+            <textarea id="preferencias" placeholder="Ej: semana de viaje, tiene boda el sábado, empieza gimnasio..."></textarea>
+          </div>
+        </div>
+        <button class="btn-generar" id="btnGenerar" onclick="generarMenu()">
+          ✨ Generar menú personalizado con IA
+        </button>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div class="card" id="loadingCard" style="display:none;">
+      <div class="card-body loading" style="display:block;">
+        <div class="spinner"></div>
+        <strong>Generando menú personalizado…</strong>
+        <p style="color:var(--gris);font-size:13px;">Esto puede tardar unos segundos</p>
+        <div class="loading-steps">
+          <div class="loading-step" id="s1"><div class="dot"></div>Leyendo datos clínicos</div>
+          <div class="loading-step" id="s2"><div class="dot"></div>Revisando medicación e intolerancias</div>
+          <div class="loading-step" id="s3"><div class="dot"></div>Calculando distribución nutricional</div>
+          <div class="loading-step" id="s4"><div class="dot"></div>Construyendo menú semanal</div>
+          <div class="loading-step" id="s5"><div class="dot"></div>Generando lista de la compra</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTADO -->
+    <div class="menu-resultado" id="menuResultado"></div>
+    <div class="lista-compra" id="listaCompra"></div>
+
+  </div>
+
+  <!-- PANEL HISTORIAL -->
+  <div class="panel" id="panel-historial">
+    <div class="card">
+      <div class="card-header"><h2>📋 Historial de menús generados</h2></div>
+      <div class="card-body" id="historialBody">
+        <p style="color:var(--gris);font-size:13px;text-align:center;padding:20px;">Los menús generados en esta sesión aparecerán aquí.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="informe-print"></div>
+
+<script>
+// ⚠️ Sustituye esta clave por la tuya de Anthropic
+const API_KEY = "TU_API_KEY_AQUI";
+const DEFAULT_SHEET_ID = "1mULURhtAv360Ac6_iMPcDjIhufkjpSG8Wo2p-RvUQnw";
+
+let pacienteData = {};
+let menuGenerado = null;
+let listaCompraData = {};
+let historial = [];
+
+// ----- TABS -----
+function cambiarTab(id, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+}
+
+// ----- GOOGLE SHEETS -----
+let todasPacientes = []; // cache de todas las filas cargadas
+
+async function cargarDeSheets() {
+  const rawInput = document.getElementById('sheetUrl').value.trim();
+  const tabSel = document.getElementById('sheetTab').value;
+  let sheetId = DEFAULT_SHEET_ID;
+  if (rawInput) {
+    const m = rawInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) sheetId = m[1];
+    else if (rawInput.length > 20 && !rawInput.includes(' ')) sheetId = rawInput;
+  }
+
+  const tabs = tabSel === 'ambas' ? ['Menopausia','Tiroides'] : [tabSel];
+  todasPacientes = [];
+
+  try {
+    for (const tab of tabs) {
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const csv = await resp.text();
+      const filas = parsearCSV(csv);
+      if (filas.length < 2) continue;
+      const headers = filas[0];
+      filas.slice(1).forEach(fila => {
+        if (fila.some(f=>f)) todasPacientes.push({headers, fila, tab});
+      });
+    }
+
+    if (!todasPacientes.length) throw new Error('No se encontraron pacientes');
+
+    // Sort newest first
+    todasPacientes.reverse();
+
+    document.getElementById('buscadorSection').style.display = 'block';
+    document.getElementById('buscarInput').value = '';
+    mostrarTodasPacientes();
+    mostrarOK(`✓ ${todasPacientes.length} pacientes cargadas · Busca por email o nombre`);
+  } catch(e) {
+    mostrarError('No se pudo cargar. ¿La hoja es pública? · ' + e.message);
+  }
+}
+
+function filtrarPacientes(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { mostrarTodasPacientes(); return; }
+  
+  const encontradas = todasPacientes.filter(({headers, fila}) => {
+    const email = (col(headers,fila,'email')||fila[1]||'').toLowerCase();
+    const nombre = (col(headers,fila,'nombre')||'').toLowerCase();
+    const fase = (col(headers,fila,'fase')||'').toLowerCase();
+    return email.includes(q) || nombre.includes(q) || fase.includes(q);
+  });
+
+  renderizarLista(encontradas, q);
+  const contador = document.getElementById('contadorResultados');
+  contador.textContent = encontradas.length > 0
+    ? `${encontradas.length} resultado${encontradas.length>1?'s':''} encontrado${encontradas.length>1?'s':''}`
+    : 'No se encontró ninguna paciente con ese email o nombre';
+  contador.style.color = encontradas.length > 0 ? 'var(--verde-m)' : 'var(--rojo)';
+}
+
+function mostrarTodasPacientes() {
+  renderizarLista(todasPacientes, '');
+  document.getElementById('contadorResultados').textContent = `${todasPacientes.length} pacientes en total`;
+  document.getElementById('contadorResultados').style.color = 'var(--gris)';
+}
+
+function renderizarLista(lista, query) {
+  const contenedor = document.getElementById('pacientesLista');
+  contenedor.innerHTML = '';
+  lista.forEach(({headers, fila, tab}) => {
+    const email = col(headers,fila,'email')||fila[1]||'—';
+    const fecha = fila[0]||'—';
+    const fase  = col(headers,fila,'fase')||'';
+    const edad  = col(headers,fila,'edad')||'';
+    const div = document.createElement('div');
+    div.className = 'paciente-row';
+    // Highlight matching text
+    const emailHL = query ? email.replace(new RegExp(`(${query})`, 'gi'), '<mark style="background:#C8E6C9;border-radius:2px;">$1</mark>') : email;
+    div.innerHTML = `
+      <div class="p-nombre">${emailHL} ${edad ? '<span style="font-weight:400;color:var(--gris);">· '+edad+' años</span>' : ''}</div>
+      <div class="p-info">${fecha}${fase?' · <b>'+fase+'</b>':''}${tab?' · <span style="color:var(--verde-m);">'+tab+'</span>':''}</div>`;
+    div.onclick = () => importarDesdeFila(headers, fila, tab);
+    contenedor.appendChild(div);
+  });
+  contenedor.style.display = lista.length ? 'block' : 'none';
+}
+
+function parsearCSV(csv) {
+  return csv.split('\n').filter(l=>l.trim()).map(line => {
+    const cols=[]; let cur=''; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      if(line[i]==='"'){inQ=!inQ;}
+      else if(line[i]===','&&!inQ){cols.push(cur.trim().replace(/^"|"$/g,''));cur='';}
+      else{cur+=line[i];}
+    }
+    cols.push(cur.trim().replace(/^"|"$/g,''));
+    return cols;
+  });
+}
+
+function col(headers, fila, nombre) {
+  const i = headers.findIndex(h=>h&&h.toLowerCase().includes(nombre.toLowerCase()));
+  return i>=0 ? fila[i]||'' : '';
+}
+
+function importarDesdeFila(headers, fila, tipo) {
+  document.getElementById('pacientesLista').style.display='none';
+  pacienteData = {
+    fuente:'sheets', tipo,
+    nombre: col(headers,fila,'email')||col(headers,fila,'nombre')||'Paciente',
+    email:  col(headers,fila,'email')||'',
+    edad:   col(headers,fila,'edad')||'',
+    fase:   col(headers,fila,'fase')||'',
+    sintomas:   col(headers,fila,'sintomas')||col(headers,fila,'síntomas')||'',
+    medicacion: col(headers,fila,'medicacion')||col(headers,fila,'medicación')||'',
+    ejercicio:  col(headers,fila,'ejercicio')||'',
+    alergias:   col(headers,fila,'alergias')||col(headers,fila,'intolerancias')||'',
+    diagnostico: tipo==='Menopausia'?'Menopausia / Perimenopausia':'Hipotiroidismo / Hashimoto',
+  };
+  const card = document.getElementById('pacienteImportada');
+  card.style.display='block';
+  card.innerHTML=`
+    <div class="nombre">📊 Importada desde Sheets · ${tipo}</div>
+    <div style="margin-top:6px;">
+      ${pacienteData.email?`<span class="tag">${pacienteData.email}</span>`:''}
+      ${pacienteData.edad?`<span class="tag">${pacienteData.edad} años</span>`:''}
+      ${pacienteData.fase?`<span class="tag naranja">${pacienteData.fase}</span>`:''}
+      ${pacienteData.alergias?`<span class="tag rojo">⚠️ ${pacienteData.alergias}</span>`:''}
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--gris);">Puedes subir también el Excel para añadir peso, calorías y plan nutricional completo.</div>`;
+  document.getElementById('fichaCard').style.display='none';
+  document.getElementById('opcionesCard').style.display='block';
+  mostrarOK('Paciente importada ✓');
+}
+
+// ----- CARGAR EXCEL -----
+async function cargarExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data,{type:'array',cellText:true});
+    const ws = wb.Sheets['Ficha Paciente'];
+    if (!ws){mostrarError('No se encontró la hoja "Ficha Paciente". Usa la plantilla PSNF v4.');return;}
+    const g = cell => { const c=ws[cell]; return c&&c.v!==undefined?String(c.v):''};
+
+    // v4: ficha paciente tiene 4 filas nuevas insertadas (rows 12-15), el resto sube
+    pacienteData = {
+      ...pacienteData, fuente:'excel',
+      nombre: g('B5'), fechaNacimiento: g('D5'),
+      email: g('B6')||pacienteData.email, telefono: g('D6'),
+      diagnostico: g('B10')||pacienteData.diagnostico,
+      fase: g('D10')||pacienteData.fase,
+      ths: g('B11'), tiroides: g('D11'),
+      horaLevotiroxina: g('B12'),   // NUEVO v4
+      tipoHipotiroidismo: g('D12'), // NUEVO v4
+      antiTPO: g('B13'),            // NUEVO v4
+      glucosaAyunas: g('B14'),      // NUEVO v4
+      pcrBasal: g('B15'),           // NUEVO v4
+      medicacion: g('B16')||pacienteData.medicacion,
+      suplementacion: g('D16'),
+      alergias: g('B17')||pacienteData.alergias,
+      objetivos: g('D17'),
+      peso: g('B20'), altura: g('D20'),
+      cintura: g('B21'), cadera: g('D21'),
+      abdomen: g('B22'), grasaCorporal: g('D22'),
+    };
+
+    // ── LEER HOJA ANALÍTICAS CLÍNICAS (nueva en v4) ──────────────────────
+    const wa = wb.Sheets['Analíticas Clínicas'];
+    if (wa) {
+      const ga = cell => { const c=wa[cell]; return c&&c.v!==undefined?String(c.v):''};
+      // Mapear filas de la hoja de analíticas (col B = resultado, col C = fecha)
+      // Panel tiroideo: filas 9-14
+      pacienteData.analiticas = {
+        // Tiroides
+        TSH: ga('B9'), T4L: ga('B10'), T3L: ga('B11'), T3r: ga('B12'),
+        antiTPO_val: ga('B13'), antiTg: ga('B14'),
+        // Hormonas menopausia
+        FSH: ga('B16'), LH: ga('B17'), estradiol: ga('B18'),
+        progesterona: ga('B19'), DHEAS: ga('B20'), prolactina: ga('B21'),
+        // Micronutrientes
+        vitD: ga('B23'), B12: ga('B24'), ferritina: ga('B25'),
+        hierroSerico: ga('B26'), magnesio: ga('B27'), zinc: ga('B28'),
+        selenio: ga('B29'), folato: ga('B30'),
+        // Metabolismo
+        glucosa: ga('B32'), HbA1c: ga('B33'), insulina: ga('B34'),
+        homaIR: ga('B35'), colTotal: ga('B36'), LDL: ga('B37'),
+        HDL: ga('B38'), trigliceridos: ga('B39'),
+        PCR: ga('B40'), homocisteina: ga('B41'),
+        // Óseo
+        calcio: ga('B43'), fosforo: ga('B44'), PTH: ga('B45'),
+        fosfatasaAlc: ga('B46'), vitK2: ga('B47'),
+        // Hepático/renal
+        ALT: ga('B49'), AST: ga('B50'), GGT: ga('B51'),
+        creatinina: ga('B52'), acidoUrico: ga('B53'),
+      };
+      // Leer suplementación de la hoja de analíticas
+      pacienteData.suplementacionDetalle = [];
+      for(let r=60; r<=74; r++){
+        const nom=ga(`A${r}`); const dosis=ga(`B${r}`); const hora=ga(`D${r}`);
+        if(nom && dosis) pacienteData.suplementacionDetalle.push(`${nom} ${dosis}${hora?' ('+hora+')':''}`);
+      }
+    }
+
+    const wp = wb.Sheets['Plan Nutricional'];
+    if (wp) {
+      const gp = cell => { const c=wp[cell]; return c&&c.v!==undefined?String(c.v):''};
+      pacienteData.calorias = gp('F9');
+      pacienteData.hcG = gp('C14'); pacienteData.proteinasG = gp('C15');
+      pacienteData.lipidosG = gp('C16'); pacienteData.fibraG = gp('C17');
+      pacienteData.nComidas = gp('B30'); pacienteData.tipoPlan = gp('B31');
+      pacienteData.ventanaAyuno = gp('B32');
+      pacienteData.deportes = [];
+      for(let r=22;r<=26;r++){
+        const tipo=wp[`A${r}`]; const freq=wp[`B${r}`]; const intens=wp[`D${r}`];
+        if(freq&&freq.v&&String(freq.v)!=='0')
+          pacienteData.deportes.push(`${tipo?tipo.v:''} ${freq.v}x/sem${intens?' · '+intens.v:''}`);
+      }
+      pacienteData.alimentosPref = [];
+      pacienteData.alimentosProhib = [];
+      for(let r=37;r<=46;r++){
+        const pref=wp[`B${r}`]; const proh=wp[`E${r}`];
+        if(pref&&pref.v) pacienteData.alimentosPref.push(String(pref.v));
+        if(proh&&proh.v) pacienteData.alimentosProhib.push(String(proh.v));
+      }
+      pacienteData.obsMenu = wp['A55']?String(wp['A55'].v||''):'';
+    }
+
+    const ws3 = wb.Sheets['Seguimiento'];
+    if(ws3){
+      for(let r=34;r>=5;r--){
+        const b=ws3[`B${r}`];
+        if(b&&b.v){pacienteData.ultimoPeso=String(b.v);break;}
+      }
+    }
+
+    mostrarFicha();
+    mostrarOK('Excel cargado: '+file.name);
+  } catch(e){
+    mostrarError('Error al leer el Excel. Usa la plantilla PSNF v4.');
+    console.error(e);
+  }
+}
+
+function mostrarFicha() {
+  const p = pacienteData;
+  document.getElementById('fichaTitle').textContent = p.nombre||p.email||'Paciente';
+  if(p.ultimoPeso) document.getElementById('fichaSubtitle').textContent = 'Último peso: '+p.ultimoPeso+' kg';
+  const campos=[
+    ['Diagnóstico',p.diagnostico],['Fase',p.fase],
+    ['Medicación',p.medicacion],['Suplementación',p.suplementacion],
+    ['THS',p.ths],['Tiroides/TSH',p.tiroides],
+    ['Alergias/Intol.',p.alergias],['Objetivos',p.objetivos],
+    ['Peso',p.peso?p.peso+' kg':''],['Altura',p.altura?p.altura+' cm':''],
+    ['Calorías/día',p.calorias?p.calorias+' kcal':''],['Nº comidas',p.nComidas||''],
+  ];
+  document.getElementById('fichaGrid').innerHTML = campos.map(([l,v])=>
+    `<div class="ficha-item"><span class="ficha-label">${l}</span><span class="ficha-valor ${!v?'vacio':''}">${v||'—'}</span></div>`
+  ).join('');
+  document.getElementById('fichaCard').style.display='block';
+  document.getElementById('opcionesCard').style.display='block';
+}
+
+// ----- GENERAR MENÚ -----
+async function generarMenu() {
+  if (!pacienteData.nombre && !pacienteData.email) {
+    mostrarError('Primero importa una paciente desde Sheets o sube el Excel.');
+    return;
+  }
+  const btn = document.getElementById('btnGenerar');
+  btn.disabled=true;
+  document.getElementById('loadingCard').style.display='block';
+  document.getElementById('menuResultado').style.display='none';
+  document.getElementById('listaCompra').style.display='none';
+  document.getElementById('loadingCard').scrollIntoView({behavior:'smooth'});
+
+  const semanas = parseInt(document.getElementById('semanas').value);
+  const nivel = document.getElementById('nivelCocina').value;
+  const pref  = document.getElementById('preferencias').value;
+
+  const pasos = ['s1','s2','s3','s4','s5'];
+  let si = 0;
+  pasos.forEach(s=>document.getElementById(s).className='loading-step');
+  document.getElementById(pasos[0]).classList.add('active');
+  const iv = setInterval(()=>{
+    if(si<pasos.length){document.getElementById(pasos[si]).classList.remove('active');document.getElementById(pasos[si]).classList.add('done');}
+    si++;
+    if(si<pasos.length) document.getElementById(pasos[si]).classList.add('active');
+  }, 2500);
+
+  try {
+    const prompt = construirPrompt(semanas, nivel, pref);
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})
+    });
+    clearInterval(iv);
+    pasos.forEach(s=>{const el=document.getElementById(s);el.classList.remove('active');el.classList.add('done');});
+
+    const data = await resp.json();
+    const texto = data.content[0].text;
+    const js = texto.indexOf('{'); const je = texto.lastIndexOf('}');
+    menuGenerado = JSON.parse(texto.substring(js,je+1));
+    listaCompraData = menuGenerado.lista_compra || {};
+    mostrarMenu(menuGenerado, semanas);
+    mostrarListaCompra(listaCompraData);
+    guardarHistorial(menuGenerado, semanas);
+  } catch(e) {
+    clearInterval(iv);
+    mostrarError('Error al generar el menú. Comprueba tu conexión o inténtalo de nuevo.');
+    console.error(e);
+  } finally {
+    btn.disabled=false;
+    document.getElementById('loadingCard').style.display='none';
+  }
+}
+
+function construirPrompt(semanas, nivel, pref) {
+  const p = pacienteData;
+  const a = p.analiticas || {};
+  const imc = (p.ultimoPeso||p.peso) && p.altura ?
+    (parseFloat(p.ultimoPeso||p.peso)/Math.pow(parseFloat(p.altura)/100,2)).toFixed(1) : '?';
+  const ayuno = p.tipoPlan&&p.tipoPlan.toLowerCase().includes('ayuno') ? p.tipoPlan : '';
+  const horaLevo = p.horaLevotiroxina || '';
+  const tieneHashimoto = (p.tipoHipotiroidismo||'').toLowerCase().includes('hashimoto') ||
+                         (p.diagnostico||'').toLowerCase().includes('hashimoto') ||
+                         (parseFloat(a.antiTPO_val||a.antiTPO||'0') > 35);
+  const tieneHipotiroidismo = (p.diagnostico||'').toLowerCase().includes('hipotiroid') ||
+                               (p.tiroides||'').length > 0;
+
+  // Build analítica summary — only include values that are filled in
+  const anaBlock = (() => {
+    const lines = [];
+    const add = (label, val, unit='', alert='') => {
+      if(val && val.trim() && val.trim()!=='0') lines.push(`  · ${label}: ${val}${unit?(' '+unit):''}${alert?' ⚠️ '+alert:''}`);
+    };
+    // Tiroides
+    add('TSH', a.TSH, 'mUI/L', parseFloat(a.TSH)>4?'ELEVADA — ajustar metabolismo calórico':parseFloat(a.TSH)<0.4?'BAJA — hipertiroidismo':'');
+    add('T4 libre', a.T4L, 'ng/dL', parseFloat(a.T4L)<0.8?'BAJA — hipotiroidismo establecido':'');
+    add('T3 libre', a.T3L, 'pg/mL', parseFloat(a.T3L)<2.3?'BAJA — incluir selenio, zinc y B12 para conversión T4→T3':'');
+    add('T3 reversa', a.T3r, 'pg/mL', parseFloat(a.T3r)>24?'ELEVADA — antiinflamatoria estricta, evitar estrés oxidativo':'');
+    add('Anti-TPO', a.antiTPO_val||a.antiTPO, 'UI/mL', parseFloat(a.antiTPO_val||a.antiTPO||'0')>35?'POSITIVO — Hashimoto confirmado. Protocolo antiinflamatorio obligatorio':'');
+    // Hormonas
+    add('FSH', a.FSH, 'mUI/mL', parseFloat(a.FSH)>40?'Menopausia confirmada — aumentar fitoestrógenos, calcio':'');
+    add('Estradiol', a.estradiol, 'pg/mL', parseFloat(a.estradiol)<30?'BAJO — incluir semillas de lino, legumbres, fitoestrógenos':'');
+    // Micronutrientes
+    add('Vitamina D', a.vitD, 'ng/mL', parseFloat(a.vitD)<30?'DÉFICIT — priorizar: salmón, sardinas, huevos, setas. Suplementar D3':'');
+    add('Vitamina B12', a.B12, 'pg/mL', parseFloat(a.B12)<500?'BAJO — priorizar: carnes magras, mariscos, huevos (conversión T4→T3)':'');
+    add('Ferritina', a.ferritina, 'ng/mL', parseFloat(a.ferritina)<70?'BAJA — incluir carnes rojas, lentejas, espinacas + vitamina C':'');
+    add('Magnesio', a.magnesio, 'mg/dL', parseFloat(a.magnesio)<1.7?'BAJO — incluir espinacas, semillas calabaza, almendras, chocolate negro':'');
+    add('Zinc', a.zinc, 'μg/dL', parseFloat(a.zinc)<70?'BAJO — incluir ostras, carne, semillas calabaza, garbanzos':'');
+    add('Selenio', a.selenio, 'μg/L', parseFloat(a.selenio)<70?'DÉFICIT — incluir 2 nueces de Brasil/día, atún, huevos':'');
+    // Metabolismo
+    add('Glucosa ayunas', a.glucosa||p.glucosaAyunas, 'mg/dL', parseFloat(a.glucosa||p.glucosaAyunas||'0')>100?'ELEVADA — reducir IG: sin harinas blancas, azúcar. Priorizar verduras, legumbres':'');
+    add('HbA1c', a.HbA1c, '%', parseFloat(a.HbA1c)>5.7?'PREDIABETES — antiinflamatoria, IG bajo, berberina si procede':'');
+    add('LDL colesterol', a.LDL, 'mg/dL', parseFloat(a.LDL)>130?'ELEVADO — aumentar omega-3, fibra soluble, avena, frutos secos':'');
+    add('HDL colesterol', a.HDL, 'mg/dL', parseFloat(a.HDL)<50?'BAJO — aumentar aceite oliva, aguacate, frutos secos, omega-3':'');
+    add('Triglicéridos', a.trigliceridos, 'mg/dL', parseFloat(a.trigliceridos)>150?'ELEVADOS — reducir azúcares, alcohol. Aumentar omega-3':'');
+    add('PCR', a.PCR||p.pcrBasal, 'mg/L', parseFloat(a.PCR||p.pcrBasal||'0')>1?'INFLAMACIÓN — protocolo antiinflamatorio prioritario':'');
+    // Óseo
+    add('Vitamina D (óseo)', a.vitD, 'ng/mL');
+    add('Calcio sérico', a.calcio, 'mg/dL', parseFloat(a.calcio)<8.6?'BAJO — incluir lácteos, sardinas con espina, almendras, col rizada':'');
+    return lines.length ? '\nANALÍTICAS CLÍNICAS (interpretadas por IA):\n' + lines.join('\n') : '';
+  })();
+
+  // Suplementación detalle
+  const suppDetalle = p.suplementacionDetalle && p.suplementacionDetalle.length ?
+    p.suplementacionDetalle.join(' | ') : p.suplementacion || 'ninguna';
+
+  // Interaction rules based on levotiroxina time
+  const interaccionesLevo = horaLevo ? `
+REGLAS CRÍTICAS LEVOTIROXINA (toma a las ${horaLevo}):
+- Desayuno: mínimo 60 min después de la toma → mencionar "💊 Levotiroxina con agua a las ${horaLevo}, desayuno no antes de las ${calcularDesayuno(horaLevo)}"
+- NUNCA incluir en el desayuno: leche, zumos, cereales integrales, soja, nueces, café
+- NUNCA combinar en la misma comida que: calcio, hierro, zinc, magnesio (separar ≥ 2h)
+- Si THS: los estrógenos pueden aumentar necesidad de dosis → monitorizar TSH` :
+  `REGLAS LEVOTIROXINA: Si toma levotiroxina, recordar tomarla en ayunas 60 min antes del desayuno.
+- Desayuno: NUNCA incluir leche, zumos, cereales integrales, soja, nueces ni café junto a la toma`;
+
+  return `Eres Paola Sánchez, farmacéutica y nutricionista especialista en menopausia e hipotiroidismo. Genera ${semanas} semana(s) de menú completo PERSONALIZADO basado en los datos clínicos y analíticas de esta paciente.
+
+═══ DATOS CLÍNICOS ═══
+- Paciente: ${p.nombre||p.email||'Paciente'}
+- Diagnóstico principal: ${p.diagnostico||'no indicado'}
+- Fase menopausia: ${p.fase||'no indicada'}
+- Tipo hipotiroidismo: ${p.tipoHipotiroidismo||'no especificado'}${tieneHashimoto?' → HASHIMOTO CONFIRMADO':''}
+- Síntomas actuales: ${p.sintomas||'no indicados'}
+- THS (terapia hormonal): ${p.ths||'no'}
+- Medicación: ${p.medicacion||'ninguna'}
+- Suplementación: ${suppDetalle}
+- ⛔ ALERGIAS/INTOLERANCIAS (NUNCA USAR BAJO NINGÚN CONCEPTO): ${p.alergias||'ninguna'}
+- Objetivos: ${p.objetivos||'no indicados'}
+- Peso: ${p.ultimoPeso||p.peso||'?'} kg · Altura: ${p.altura||'?'} cm · IMC: ${imc}
+- Cintura: ${p.cintura||'?'} cm · % Grasa: ${p.grasaCorporal||'?'}%
+${anaBlock}
+
+═══ PLAN NUTRICIONAL ═══
+- Calorías objetivo: ${p.calorias||'calcular según perfil'} kcal/día
+- HC: ${p.hcG||'?'} g · Proteínas: ${p.proteinasG||'?'} g · Lípidos: ${p.lipidosG||'?'} g · Fibra: ${p.fibraG||'?'} g
+- Nº comidas: ${p.nComidas||'5'}
+- ${ayuno?'PLAN AYUNO: '+ayuno+' — OBLIGATORIO adaptar comidas a la ventana alimentaria indicada':'Sin ayuno intermitente'}
+- Ventana alimentaria: ${p.ventanaAyuno||'sin restricción'}
+- Deporte: ${p.deportes&&p.deportes.length?p.deportes.join(' | '):'no indicado'}
+
+═══ PREFERENCIAS ALIMENTARIAS ═══
+- ✅ INCLUIR / Preferidos: ${p.alimentosPref&&p.alimentosPref.length?p.alimentosPref.join(', '):'sin preferencias específicas'}
+- 🚫 EVITAR / Prohibidos: ${p.alimentosProhib&&p.alimentosProhib.length?p.alimentosProhib.join(', '):'ninguno adicional'}
+- Observaciones del plan: ${p.obsMenu||'—'}
+- Notas sesión: ${pref||'—'}
+- Nivel cocina: ${nivel==='sencillo'?'recetas RÁPIDAS máx 20 min, técnicas simples':nivel==='medio'?'recetas de 30-40 min, variadas':'recetas elaboradas, técnicas avanzadas'}
+
+${interaccionesLevo}
+
+═══ CRITERIOS CLÍNICOS OBLIGATORIOS ═══
+1. ⛔ NUNCA usar alimentos de alergias/intolerancias ni lista de prohibidos
+2. PROTOCOLO TIROIDEO (si hipotiroidismo activo):
+   - Alimentos ricos en yodo: pescados, mariscos, algas (con moderación), huevos, lácteos
+   - Alimentos ricos en selenio: 2 nueces de Brasil/día, atún, sardinas, huevos
+   - Alimentos ricos en zinc: ostras/mariscos, carne, semillas de calabaza
+   - Crucíferas (brócoli, coliflor, col): SOLO cocinadas, máx 1 vez/semana, NUNCA crudas
+   - Soja y derivados: SEPARAR ≥ 4h de levotiroxina, uso muy moderado
+   - Algas en exceso: EVITAR (pueden alterar TSH)
+3. ${tieneHashimoto?'PROTOCOLO HASHIMOTO (OBLIGATORIO):':// conditional
+   'PROTOCOLO ANTIINFLAMATORIO (si PCR o síntomas inflamatorios):'}
+   - Dieta antiinflamatoria estricta: omega-3, cúrcuma, jengibre, verduras de colores
+   - Reducir/eliminar: gluten (si tolerancia comprometida), lácteos de vaca (priorizar cabra/oveja)
+   - Eliminar: azúcar libre, procesados, alcohol, harinas refinadas
+   - Incluir: probióticos/fermentados (kéfir, yogur, chucrut) para eje intestino-tiroides
+4. PROTOCOLO MENOPAUSIA (si fase menopausia indicada):
+   - Proteína de calidad en CADA toma principal (mínimo 25-30g por comida)
+   - Calcio en al menos 2-3 comidas diarias (lácteos, sardinas, almendras, tofu, col rizada)
+   - Fitoestrógenos moderados: lino molido, legumbres, edamame, garbanzos (no soja si hashimoto)
+   - Omega-3: salmón, sardinas, caballa, nueces, semillas chía/lino — mínimo 3 veces/semana
+   - Magnesio en cena: reduce insomnio y calambres (espinacas, almendras, chocolate 85%)
+   - Antioxidantes para hueso: vitamina K2 (verduras hoja verde, quesos curados)
+5. CONTROL GLUCÉMICO (si glucosa o HbA1c elevada):
+   - Índice glucémico bajo: priorizar legumbres, vegetales, proteínas, grasas saludables
+   - Evitar: harinas blancas, arroz blanco, azúcares, zumos, bollería
+   - Incluir: canela, berberina si procede, vinagre de manzana antes comidas
+6. MICRONUTRIENTES DEFICIENTES (basado en analíticas):
+   - Vitamina D baja: salmón, sardinas, huevos, setas shiitake (mínimo 3-4x/semana)
+   - Ferritina baja: carne roja 2x/semana, lentejas, espinacas SIEMPRE con vitamina C
+   - B12 baja: huevos, carne, mariscos diariamente
+   - Selenio bajo: 2 nueces de Brasil/día en desayuno o merienda
+7. DEPORTE Y TIMING NUTRICIONAL:
+   - Pre-entreno: hidratos complejos + proteína ligera (30-60 min antes)
+   - Post-entreno: proteína de calidad + hidratos (dentro de 30-60 min)
+   - Si ejercicio de fuerza: aumentar proteína total diaria
+8. ESTRUCTURA Y VARIEDAD:
+   - NO repetir el mismo desayuno más de 2 veces/semana
+   - NO repetir proteína animal más de 2 días consecutivos
+   - Incluir al menos 5 colores de verduras/frutas diferentes a la semana
+   - Cenas ligeras, baja densidad calórica, sin hidratos refinados
+   - Indicar método de cocción: plancha, vapor, horno, crudo, salteado
+
+Responde SOLO con JSON válido, sin markdown, sin explicaciones, sin texto antes ni después:
+{"semanas":[{"semana":1,"menu":[{"dia":"Lunes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Martes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Miércoles","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Jueves","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Viernes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Sábado","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Domingo","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."}]}],"consejos":["consejo clínico personalizado basado en analíticas 1","consejo 2","consejo 3","consejo 4","consejo 5"],"lista_compra":{"verduras":["..."],"frutas":["..."],"proteinas":["..."],"lacteos_huevos":["..."],"cereales_legumbres":["..."],"grasas":["..."],"otros":["..."]}}`;
+}
+
+function calcularDesayuno(horaLevo) {
+  try {
+    const [h, m] = horaLevo.replace('h','').split(':').map(Number);
+    const total = (h * 60) + (m || 0) + 60;
+    return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+  } catch(e) { return 'la hora indicada +60 min'; }
+}
+
+// ----- MOSTRAR MENÚ -----
+function mostrarMenu(data, semanas) {
+  const p = pacienteData;
+  let html = `
+    <div class="menu-top">
+      <div><h2>Menú · ${p.nombre||p.email||'Paciente'}</h2></div>
+      <span>${semanas} semana${semanas>1?'s':''} · ${new Date().toLocaleDateString('es-ES')}</span>
+    </div>`;
+
+  data.semanas.forEach(sem => {
+    if(data.semanas.length>1) html+=`<div class="semana-label">Semana ${sem.semana}</div>`;
+    sem.menu.forEach(dia=>{
+      html+=`
+        <div class="dia-card">
+          <div class="dia-header" onclick="toggleDia(this)">
+            <span class="dia-nombre">${dia.dia}</span>
+            <span class="dia-arrow open">▼</span>
+          </div>
+          <div class="dia-body">
+            <div class="comida-item d"><div class="comida-titulo">☀️ Desayuno</div><div class="comida-texto">${dia.desayuno||'—'}</div></div>
+            <div class="comida-item s"><div class="comida-titulo">🍎 Media mañana</div><div class="comida-texto">${dia.media_manana||'—'}</div></div>
+            <div class="comida-item c"><div class="comida-titulo">🍽️ Comida</div><div class="comida-texto">${dia.comida||'—'}</div></div>
+            <div class="comida-item s"><div class="comida-titulo">☕ Merienda</div><div class="comida-texto">${dia.merienda||'—'}</div></div>
+            <div class="comida-item n"><div class="comida-titulo">🌙 Cena</div><div class="comida-texto">${dia.cena||'—'}</div></div>
+          </div>
+        </div>`;
+    });
+  });
+
+  if(data.consejos?.length){
+    html+=`<div class="consejos-box"><h3>💡 Consejos personalizados</h3>${data.consejos.map(c=>`<div class="consejo">${c}</div>`).join('')}</div>`;
+  }
+
+  html+=`
+    <div class="acciones">
+      <button class="btn-acc p" onclick="generarInformePDF()">🖨️ Imprimir informe completo</button>
+      <button class="btn-acc s" onclick="generarMenu()">🔄 Regenerar</button>
+      <button class="btn-acc a" onclick="document.getElementById('listaCompra').scrollIntoView({behavior:'smooth'})">🛒 Ver lista de la compra</button>
+    </div>`;
+
+  const res = document.getElementById('menuResultado');
+  res.innerHTML=html; res.style.display='block';
+  res.scrollIntoView({behavior:'smooth'});
+}
+
+function toggleDia(header){
+  const body=header.nextElementSibling;
+  const arrow=header.querySelector('.dia-arrow');
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'grid';
+  arrow.classList.toggle('open',!open);
+}
+
+// ----- LISTA COMPRA -----
+function mostrarListaCompra(lista) {
+  const grupos={
+    verduras:'🥦 Verduras y hortalizas',frutas:'🍎 Frutas',
+    proteinas:'🍗 Carnes, pescados y proteína',lacteos_huevos:'🥚 Lácteos y huevos',
+    cereales_legumbres:'🌾 Cereales y legumbres',grasas:'🫒 Grasas y condimentos',otros:'🧴 Otros'
+  };
+  let html=`<div class="lc-header"><h2>🛒 Lista de la Compra</h2></div><div class="lc-grupos">`;
+  let hay=false;
+  for(const [key,label] of Object.entries(grupos)){
+    const items=lista[key]||[]; if(!items.length) continue; hay=true;
+    html+=`<div class="lc-grupo"><div class="lc-grupo-header">${label}</div><div class="lc-items">${
+      items.map(i=>`<div class="lc-item"><input type="checkbox" onchange="this.parentNode.style.opacity=this.checked?'0.4':'1'"> ${i}</div>`).join('')
+    }</div></div>`;
+  }
+  if(!hay) html+=`<div style="padding:20px;color:var(--gris);font-size:13px;text-align:center;">No se generó lista de compra automáticamente.</div>`;
+  html+=`</div><div class="lc-footer"><button class="btn-acc p" onclick="imprimirListaCompra()">🖨️ Imprimir lista</button></div>`;
+  const lc=document.getElementById('listaCompra');
+  lc.innerHTML=html; lc.style.display='block';
+}
+
+// ----- INFORME PDF -----
+function generarInformePDF(){
+  if(!menuGenerado) return;
+  const p=pacienteData;
+  const fecha=new Date().toLocaleDateString('es-ES');
+  let html=`
+    <div class="inf-header">
+      <div class="inf-logo">PSNF</div>
+      <div style="font-size:13px;color:#666;margin-top:4px;">Paola Sánchez · Farmacéutica y Nutricionista</div>
+      <div style="font-size:12px;color:#999;margin-top:6px;">Informe nutricional personalizado · ${fecha}</div>
+    </div>
+    <div class="inf-seccion"><h2>DATOS DE LA PACIENTE</h2><div class="inf-grid">
+      ${[['Nombre/Email',p.nombre||p.email||'—'],['Diagnóstico',p.diagnostico||'—'],
+         ['Fase',p.fase||'—'],['Medicación',p.medicacion||'—'],
+         ['Suplementación',p.suplementacion||'—'],['THS',p.ths||'—'],
+         ['Alergias/Intol.',p.alergias||'Ninguna'],
+         ['Peso',(p.ultimoPeso||p.peso)?((p.ultimoPeso||p.peso)+' kg'):'—'],
+         ['Altura',p.altura?p.altura+' cm':'—'],
+         ['Calorías/día',p.calorias?p.calorias+' kcal':'—'],
+         ['Proteínas/día',p.proteinasG?p.proteinasG+' g':'—'],
+         ['Plan alimentario',p.tipoPlan||'Estándar']
+        ].map(([l,v])=>`<div class="inf-campo"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('')}
+    </div></div>`;
+
+  menuGenerado.semanas.forEach(sem=>{
+    html+=`<div class="inf-seccion"><h2>MENÚ SEMANA ${sem.semana}</h2>`;
+    sem.menu.forEach(dia=>{
+      html+=`<div class="inf-dia"><div class="inf-dia-h">${dia.dia.toUpperCase()}</div><div class="inf-comidas">
+        <div class="inf-comida"><div class="ct">☀️ Desayuno</div><div class="cv">${dia.desayuno||'—'}</div></div>
+        <div class="inf-comida"><div class="ct">🍎 Media mañana</div><div class="cv">${dia.media_manana||'—'}</div></div>
+        <div class="inf-comida"><div class="ct">🍽️ Comida</div><div class="cv">${dia.comida||'—'}</div></div>
+        <div class="inf-comida"><div class="ct">☕ Merienda</div><div class="cv">${dia.merienda||'—'}</div></div>
+        <div class="inf-comida"><div class="ct">🌙 Cena</div><div class="cv">${dia.cena||'—'}</div></div>
+      </div></div>`;
+    });
+    html+=`</div>`;
+  });
+
+  if(menuGenerado.consejos?.length){
+    html+=`<div class="inf-seccion"><h2>CONSEJOS PERSONALIZADOS</h2>${
+      menuGenerado.consejos.map(c=>`<div style="font-size:11px;padding:5px 0;border-bottom:1px solid #eee;">✦ ${c}</div>`).join('')
+    }</div>`;
+  }
+
+  const grupos={verduras:'🥦 Verduras',frutas:'🍎 Frutas',proteinas:'🍗 Proteínas',
+    lacteos_huevos:'🥚 Lácteos y huevos',cereales_legumbres:'🌾 Cereales y legumbres',
+    grasas:'🫒 Grasas',otros:'🧴 Otros'};
+  if(Object.values(listaCompraData).some(a=>a&&a.length)){
+    html+=`<div class="inf-seccion"><h2>🛒 LISTA DE LA COMPRA</h2><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">`;
+    for(const [k,label] of Object.entries(grupos)){
+      const items=listaCompraData[k]||[]; if(!items.length) continue;
+      html+=`<div><div style="font-weight:700;font-size:10px;color:#1B5E20;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #C8E6C9;">${label}</div>
+        ${items.map(i=>`<div class="inf-lc-item">${i}</div>`).join('')}</div>`;
+    }
+    html+=`</div></div>`;
+  }
+
+  html+=`<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eee;text-align:center;font-size:9px;color:#999;">
+    PSNF · Paola Sánchez Nutrición y Farmacia · psnf.es · ${fecha}<br>
+    Este plan es orientativo. Consulta siempre con tu médico o especialista.
+  </div>`;
+
+  const el=document.getElementById('informe-print');
+  el.innerHTML=html; el.style.display='block';
+  setTimeout(()=>{window.print();el.style.display='none';},300);
+}
+
+function imprimirListaCompra(){
+  const grupos={verduras:'🥦 Verduras y hortalizas',frutas:'🍎 Frutas',proteinas:'🍗 Proteínas',
+    lacteos_huevos:'🥚 Lácteos y huevos',cereales_legumbres:'🌾 Cereales y legumbres',
+    grasas:'🫒 Grasas',otros:'🧴 Otros'};
+  let html=`<div class="inf-header"><div class="inf-logo">PSNF</div>
+    <div style="font-size:12px;color:#666;margin-top:6px;">Lista de la compra · ${new Date().toLocaleDateString('es-ES')}</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">`;
+  for(const [k,label] of Object.entries(grupos)){
+    const items=listaCompraData[k]||[]; if(!items.length) continue;
+    html+=`<div><div style="font-weight:700;font-size:12px;color:#1B5E20;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #C8E6C9;">${label}</div>
+      ${items.map(i=>`<div class="inf-lc-item">${i}</div>`).join('')}</div>`;
+  }
+  html+=`</div>`;
+  const el=document.getElementById('informe-print');
+  el.innerHTML=html; el.style.display='block';
+  setTimeout(()=>{window.print();el.style.display='none';},300);
+}
+
+// ----- HISTORIAL -----
+function guardarHistorial(menu,semanas){
+  historial.unshift({nombre:pacienteData.nombre||pacienteData.email||'Paciente',
+    fecha:new Date().toLocaleDateString('es-ES'),semanas,menu,lista:listaCompraData});
+  const body=document.getElementById('historialBody');
+  body.innerHTML=historial.map((h,i)=>`
+    <div style="border:1px solid var(--borde);border-radius:8px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-weight:600;font-size:14px;">${h.nombre}</div>
+        <div style="font-size:12px;color:var(--gris);">${h.fecha} · ${h.semanas} semana${h.semanas>1?'s':''}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-acc s" onclick="recuperarHistorial(${i})">Ver menú</button>
+        <button class="btn-acc p" onclick="recuperarHistorial(${i});generarInformePDF()">PDF</button>
+      </div>
+    </div>`).join('');
+}
+
+function recuperarHistorial(idx){
+  const h=historial[idx];
+  menuGenerado=h.menu; listaCompraData=h.lista;
+  cambiarTab('generador',document.querySelector('.tab'));
+  mostrarMenu(h.menu,h.semanas);
+  mostrarListaCompra(h.lista);
+}
+
+// ----- UTILS -----
+function mostrarError(msg){const el=document.getElementById('alertE');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',7000);}
+function mostrarOK(msg){const el=document.getElementById('alertOK');el.textContent='✓ '+msg;el.style.display='block';setTimeout(()=>el.style.display='none',3000);}
+
+// Drag & drop
+const zone=document.getElementById('uploadZone');
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag');});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
+zone.addEventListener('drop',e=>{
+  e.preventDefault();zone.classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f){const dt=new DataTransfer();dt.items.add(f);document.getElementById('fileInput').files=dt.files;cargarExcel(document.getElementById('fileInput'));}
+});
+</script>
+</body>
+</html>
