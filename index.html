@@ -321,7 +321,7 @@ let todasPacientes = []; // cache de todas las filas cargadas
 async function cargarDeSheets() {
   const rawInput = document.getElementById('sheetUrl').value.trim();
   const tabSel = document.getElementById('sheetTab').value;
-  let sheetId = let sheetId = "1mULURhtAv360Ac6_iMPcDjIhufkjpSG8Wo2p-RvUQnw";;
+ let sheetId = DEFAULT_SHEET_ID;
   if (rawInput) {
     const m = rawInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
     if (m) sheetId = m[1];
