@@ -299,8 +299,12 @@ header span{color:var(--verde-c);font-size:12px;}
 
 <script>
 // ⚠️ Sustituye esta clave por la tuya de Anthropic
+// ═══════════════════════════════════════════════════════════════
+// REEMPLAZA DESDE AQUÍ (línea 300 aprox, donde empieza <script>)
+// ═══════════════════════════════════════════════════════════════
+
 const API_KEY = "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";
-const DEFAULT_SHEET_ID = "1mULURhtAv360Ac6_iMPcDjIhufkjpSG8Wo2p-RvUQnw";
+const DEFAULT_SHEET_ID = "1rYflbV7MWr51QfuR6aTEOupf2nJg317xRjQhycjL8rw";
 
 let pacienteData = {};
 let menuGenerado = null;
@@ -316,19 +320,19 @@ function cambiarTab(id, el) {
 }
 
 // ----- GOOGLE SHEETS -----
-let todasPacientes = []; // cache de todas las filas cargadas
+let todasPacientes = [];
 
 async function cargarDeSheets() {
   const rawInput = document.getElementById('sheetUrl').value.trim();
   const tabSel = document.getElementById('sheetTab').value;
- let sheetId = DEFAULT_SHEET_ID;
+  let sheetId = DEFAULT_SHEET_ID;
   if (rawInput) {
     const m = rawInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
     if (m) sheetId = m[1];
     else if (rawInput.length > 20 && !rawInput.includes(' ')) sheetId = rawInput;
   }
 
-  const tabs = tabSel === 'ambas' ? ['Menopausia','Tiroides'] : [tabSel];
+  const tabs = tabSel === 'ambas' ? ['Respuestas de formulario 1'] : [tabSel];
   todasPacientes = [];
 
   try {
@@ -346,8 +350,6 @@ async function cargarDeSheets() {
     }
 
     if (!todasPacientes.length) throw new Error('No se encontraron pacientes');
-
-    // Sort newest first
     todasPacientes.reverse();
 
     document.getElementById('buscadorSection').style.display = 'block';
@@ -362,19 +364,16 @@ async function cargarDeSheets() {
 function filtrarPacientes(query) {
   const q = query.trim().toLowerCase();
   if (!q) { mostrarTodasPacientes(); return; }
-  
   const encontradas = todasPacientes.filter(({headers, fila}) => {
-    const email = (col(headers,fila,'email')||fila[1]||'').toLowerCase();
+    const email = (col(headers,fila,'correo')||col(headers,fila,'email')||fila[1]||'').toLowerCase();
     const nombre = (col(headers,fila,'nombre')||'').toLowerCase();
-    const fase = (col(headers,fila,'fase')||'').toLowerCase();
-    return email.includes(q) || nombre.includes(q) || fase.includes(q);
+    return email.includes(q) || nombre.includes(q);
   });
-
   renderizarLista(encontradas, q);
   const contador = document.getElementById('contadorResultados');
   contador.textContent = encontradas.length > 0
     ? `${encontradas.length} resultado${encontradas.length>1?'s':''} encontrado${encontradas.length>1?'s':''}`
-    : 'No se encontró ninguna paciente con ese email o nombre';
+    : 'No se encontró ninguna paciente';
   contador.style.color = encontradas.length > 0 ? 'var(--verde-m)' : 'var(--rojo)';
 }
 
@@ -388,17 +387,17 @@ function renderizarLista(lista, query) {
   const contenedor = document.getElementById('pacientesLista');
   contenedor.innerHTML = '';
   lista.forEach(({headers, fila, tab}) => {
-    const email = col(headers,fila,'email')||fila[1]||'—';
+    const email = col(headers,fila,'correo')||col(headers,fila,'email')||fila[1]||'—';
+    const nombre = col(headers,fila,'nombre completo')||col(headers,fila,'nombre')||'—';
     const fecha = fila[0]||'—';
-    const fase  = col(headers,fila,'fase')||'';
-    const edad  = col(headers,fila,'edad')||'';
+    const diagnostico = col(headers,fila,'diagnóstico principal')||col(headers,fila,'diagnostico')||'';
     const div = document.createElement('div');
     div.className = 'paciente-row';
-    // Highlight matching text
     const emailHL = query ? email.replace(new RegExp(`(${query})`, 'gi'), '<mark style="background:#C8E6C9;border-radius:2px;">$1</mark>') : email;
+    const nombreHL = query ? nombre.replace(new RegExp(`(${query})`, 'gi'), '<mark style="background:#C8E6C9;border-radius:2px;">$1</mark>') : nombre;
     div.innerHTML = `
-      <div class="p-nombre">${emailHL} ${edad ? '<span style="font-weight:400;color:var(--gris);">· '+edad+' años</span>' : ''}</div>
-      <div class="p-info">${fecha}${fase?' · <b>'+fase+'</b>':''}${tab?' · <span style="color:var(--verde-m);">'+tab+'</span>':''}</div>`;
+      <div class="p-nombre">${nombreHL} <span style="font-weight:400;color:var(--gris);">· ${emailHL}</span></div>
+      <div class="p-info">${fecha}${diagnostico?' · <b>'+diagnostico+'</b>':''}</div>`;
     div.onclick = () => importarDesdeFila(headers, fila, tab);
     contenedor.appendChild(div);
   });
@@ -423,163 +422,175 @@ function col(headers, fila, nombre) {
   return i>=0 ? fila[i]||'' : '';
 }
 
-function importarDesdeFila(headers, fila, tipo) {
+function importarDesdeFila(headers, fila, tab) {
   document.getElementById('pacientesLista').style.display='none';
+  const c = (nombre) => col(headers, fila, nombre);
+
   pacienteData = {
-    fuente:'sheets', tipo,
-    nombre: col(headers,fila,'email')||col(headers,fila,'nombre')||'Paciente',
-    email:  col(headers,fila,'email')||'',
-    edad:   col(headers,fila,'edad')||'',
-    fase:   col(headers,fila,'fase')||'',
-    sintomas:   col(headers,fila,'sintomas')||col(headers,fila,'síntomas')||'',
-    medicacion: col(headers,fila,'medicacion')||col(headers,fila,'medicación')||'',
-    ejercicio:  col(headers,fila,'ejercicio')||'',
-    alergias:   col(headers,fila,'alergias')||col(headers,fila,'intolerancias')||'',
-    diagnostico: tipo==='Menopausia'?'Menopausia / Perimenopausia':'Hipotiroidismo / Hashimoto',
+    fuente: 'sheets',
+    tab,
+    // Datos personales
+    nombre:       c('nombre completo') || c('nombre') || 'Paciente',
+    email:        c('correo') || c('email') || fila[1] || '',
+    fechaNacimiento: c('fecha de nacimiento') || '',
+    pais:         c('país de origen') || '',
+    religion:     c('religión') || '',
+    // Motivo consulta
+    motivoConsulta:  c('por qué vienes') || c('motivo') || '',
+    expectativas:    c('qué esperas') || '',
+    motivacion:      c('motivación') || '',
+    imagenCorporal:  c('imagen corporal') || '',
+    nivelEnergia:    c('niveles de energía') || '',
+    apoyoFamiliar:   c('apoyo familiar') || '',
+    // Antecedentes
+    enfermedadesPropias:  c('enfermedades o trastornos que padeces') || '',
+    enfermedadesFamilia:  c('enfermedades relevantes en tu familia') || '',
+    tabaco:    c('fumas') || '',
+    alcohol:   c('consumes alcohol') || '',
+    trabajo:   c('tipo de trabajo') || '',
+    horarioLaboral: c('horario laboral') || '',
+    // Sueño
+    calidadSueno:  c('cómo sientes que duermes') || '',
+    horasSueno:    c('cuántas horas duermes') || '',
+    horarioSueno:  c('horario fijo de sueño') || '',
+    digestiones:   c('cómo son tus digestiones') || '',
+    bano:          c('con qué frecuencia vas al baño') || '',
+    // Diagnóstico
+    diagnostico:   c('diagnóstico principal') || '',
+    fase:          c('fase menopausia') || '',
+    tratamientosAnteriores: c('tratamientos realizados') || '',
+    ths:           c('terapia hormonal sustitutiva') || c('ths') || '',
+    tipoHipotiroidismo: c('tipo de hipotiroidismo') || '',
+    tomaNLevotiroxina: c('tomas levotiroxina') || '',
+    horaLevotiroxina:  c('a qué hora tomas la levotiroxina') || '',
+    medicacion:    c('medicación actual') || '',
+    suplementacion: c('suplementación actual') || '',
+    patologiasAsociadas: c('trastornos o patologías asociadas') || '',
+    // Síntomas
+    sintomas:      c('qué síntomas presentas') || '',
+    otrosSintomas: c('otros síntomas') || '',
+    // Alergias
+    tieneAlergias: c('tienes alguna alergia') || '',
+    alergias:      c('si tienes, marca cuáles') || c('alergias') || '',
+    tipoAlergia:   c('está diagnosticada') || '',
+    alergiasExtra: c('especifica si hay alguna alergia') || '',
+    // Hábitos alimentarios
+    dondecome:     c('dónde haces las comidas') || '',
+    conquiencome:  c('con quién comes') || '',
+    quiencocina:   c('quién prepara las comidas') || '',
+    quiencompra:   c('quién hace la compra') || '',
+    horariosComidas: c('a qué horas haces las comidas') || '',
+    nComidas:      c('cuántas comidas haces') || '',
+    ayuno:         c('haces ayuno') || '',
+    ventanaAyuno:  c('ventana alimentaria') || '',
+    picoteo:       c('picoteas entre comidas') || '',
+    velocidadComer: c('comes rápido') || '',
+    momentoApetito: c('momento del día') || '',
+    hambreReal:    c('identificar la sensación de hambre') || '',
+    saciedad:      c('qué alimentos te generan más saciedad') || '',
+    // Preferencias
+    proteinasgusta:   c('proteínas que te gustan') || '',
+    lacteosgusta:     c('lácteos que te gustan') || '',
+    verdurasgusta:    c('verduras que te gustan') || '',
+    frutasgusta:      c('frutas que te gustan') || '',
+    cerealsgusta:     c('cereales') || '',
+    grasasgusta:      c('grasas y otros') || '',
+    alimentosPref:    c('otros alimentos que te gusten') || '',
+    alimentosProhib:  c('alimentos que definitivamente no') || '',
+    // Bebidas
+    agua:          c('cuánta agua bebes') || '',
+    cafe:          c('tomas café') || '',
+    // Cocina
+    conocimientosAlimentacion: c('conocimientos sobre alimentación') || '',
+    tecnicasCocina:  c('técnicas de cocina') || '',
+    nivelCocinaForm: c('nivel de cocina') || '',
+    dietasAnteriores: c('seguido algún tratamiento dietético') || '',
+    resultadosDietas: c('cuáles y con qué resultado') || '',
+    // Deporte
+    tipoDeporte:   c('tipo de deporte') || '',
+    frecuenciaDeporte: c('frecuencia semanal') || '',
+    intensidadDeporte: c('intensidad') || '',
+    duracionDeporte: c('duración aproximada') || '',
+    // Medidas
+    peso:    c('peso actual (kg)') || c('peso') || '',
+    altura:  c('altura (cm)') || c('altura') || '',
+    cintura: c('perímetro cintura (cm)') || c('cintura') || '',
+    cadera:  c('perímetro cadera (cm)') || c('cadera') || '',
+    // Analíticas
+    analiticas: {
+      TSH:          c('tsh (muil/l)') || c('tsh') || '',
+      T4L:          c('t4 libre') || '',
+      T3L:          c('t3 libre') || '',
+      T3r:          c('t3 reversa') || '',
+      antiTPO_val:  c('anti-tpo') || '',
+      antiTg:       c('anti-tg') || '',
+      FSH:          c('fsh') || '',
+      LH:           c('lh (muil/ml)') || c('lh') || '',
+      estradiol:    c('estradiol') || '',
+      progesterona: c('progesterona') || '',
+      DHEAS:        c('dhea-s') || '',
+      prolactina:   c('prolactina') || '',
+      vitD:         c('vitamina d') || '',
+      B12:          c('vitamina b12') || '',
+      ferritina:    c('ferritina') || '',
+      hierroSerico: c('hierro sérico') || '',
+      magnesio:     c('magnesio') || '',
+      zinc:         c('zinc') || '',
+      selenio:      c('selenio') || '',
+      vitK2:        c('vitamina k2') || '',
+      glucosa:      c('glucosa en ayunas') || '',
+      HbA1c:        c('hba1c') || '',
+      insulina:     c('insulina basal') || '',
+      homaIR:       c('homa-ir') || '',
+      colTotal:     c('colesterol total') || '',
+      LDL:          c('ldl colesterol') || '',
+      HDL:          c('hdl colesterol') || '',
+      trigliceridos: c('triglicéridos') || '',
+      PCR:          c('pcr ultrasensible') || '',
+      homocisteina: c('homocisteína') || '',
+      calcio:       c('calcio sérico') || '',
+      fosforo:      c('fósforo') || '',
+      PTH:          c('pth') || '',
+      fosfatasaAlc: c('fosfatasa alcalina') || '',
+      ALT:          c('alt (u/l)') || c('alt') || '',
+      AST:          c('ast (u/l)') || c('ast') || '',
+      GGT:          c('ggt') || '',
+      creatinina:   c('creatinina') || '',
+      acidoUrico:   c('ácido úrico') || '',
+    },
+    // Seguimiento
+    pesoSeguimiento:    c('peso esta semana') || '',
+    cinturaSeguimiento: c('perímetro cintura esta semana') || '',
+    adherencia:         c('adherencia al plan') || '',
+    bienestarGeneral:   c('cómo me he sentido en general') || '',
+    energiaSeguimiento: c('niveles de energía esta semana') || '',
+    suenoSeguimiento:   c('calidad del sueño esta semana') || '',
+    sintomasSeguimiento: c('síntomas o cambios notados') || '',
+    observaciones:      c('observaciones, dudas') || '',
   };
+
+  // Usar peso de seguimiento si existe
+  if (pacienteData.pesoSeguimiento) pacienteData.ultimoPeso = pacienteData.pesoSeguimiento;
+
   const card = document.getElementById('pacienteImportada');
   card.style.display='block';
   card.innerHTML=`
-    <div class="nombre">📊 Importada desde Sheets · ${tipo}</div>
+    <div class="nombre">📊 ${pacienteData.nombre} · ${pacienteData.email}</div>
     <div style="margin-top:6px;">
-      ${pacienteData.email?`<span class="tag">${pacienteData.email}</span>`:''}
-      ${pacienteData.edad?`<span class="tag">${pacienteData.edad} años</span>`:''}
+      ${pacienteData.diagnostico?`<span class="tag">${pacienteData.diagnostico}</span>`:''}
       ${pacienteData.fase?`<span class="tag naranja">${pacienteData.fase}</span>`:''}
       ${pacienteData.alergias?`<span class="tag rojo">⚠️ ${pacienteData.alergias}</span>`:''}
+      ${pacienteData.analiticas.TSH?`<span class="tag">TSH: ${pacienteData.analiticas.TSH}</span>`:''}
+      ${pacienteData.analiticas.vitD?`<span class="tag">Vit D: ${pacienteData.analiticas.vitD}</span>`:''}
+      ${pacienteData.peso?`<span class="tag">${pacienteData.peso} kg</span>`:''}
     </div>
-    <div style="margin-top:8px;font-size:11px;color:var(--gris);">Puedes subir también el Excel para añadir peso, calorías y plan nutricional completo.</div>`;
+    <div style="margin-top:8px;font-size:11px;color:var(--gris);">
+      ${pacienteData.motivoConsulta?'💬 '+pacienteData.motivoConsulta.substring(0,100)+'...':''}
+    </div>`;
+
   document.getElementById('fichaCard').style.display='none';
   document.getElementById('opcionesCard').style.display='block';
-  mostrarOK('Paciente importada ✓');
-}
-
-// ----- CARGAR EXCEL -----
-async function cargarExcel(input) {
-  const file = input.files[0];
-  if (!file) return;
-  try {
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data,{type:'array',cellText:true});
-    const ws = wb.Sheets['Ficha Paciente'];
-    if (!ws){mostrarError('No se encontró la hoja "Ficha Paciente". Usa la plantilla PSNF v4.');return;}
-    const g = cell => { const c=ws[cell]; return c&&c.v!==undefined?String(c.v):''};
-
-    // v4: ficha paciente tiene 4 filas nuevas insertadas (rows 12-15), el resto sube
-    pacienteData = {
-      ...pacienteData, fuente:'excel',
-      nombre: g('B5'), fechaNacimiento: g('D5'),
-      email: g('B6')||pacienteData.email, telefono: g('D6'),
-      diagnostico: g('B10')||pacienteData.diagnostico,
-      fase: g('D10')||pacienteData.fase,
-      ths: g('B11'), tiroides: g('D11'),
-      horaLevotiroxina: g('B12'),   // NUEVO v4
-      tipoHipotiroidismo: g('D12'), // NUEVO v4
-      antiTPO: g('B13'),            // NUEVO v4
-      glucosaAyunas: g('B14'),      // NUEVO v4
-      pcrBasal: g('B15'),           // NUEVO v4
-      medicacion: g('B16')||pacienteData.medicacion,
-      suplementacion: g('D16'),
-      alergias: g('B17')||pacienteData.alergias,
-      objetivos: g('D17'),
-      peso: g('B20'), altura: g('D20'),
-      cintura: g('B21'), cadera: g('D21'),
-      abdomen: g('B22'), grasaCorporal: g('D22'),
-    };
-
-    // ── LEER HOJA ANALÍTICAS CLÍNICAS (nueva en v4) ──────────────────────
-    const wa = wb.Sheets['Analíticas Clínicas'];
-    if (wa) {
-      const ga = cell => { const c=wa[cell]; return c&&c.v!==undefined?String(c.v):''};
-      // Mapear filas de la hoja de analíticas (col B = resultado, col C = fecha)
-      // Panel tiroideo: filas 9-14
-      pacienteData.analiticas = {
-        // Tiroides
-        TSH: ga('B9'), T4L: ga('B10'), T3L: ga('B11'), T3r: ga('B12'),
-        antiTPO_val: ga('B13'), antiTg: ga('B14'),
-        // Hormonas menopausia
-        FSH: ga('B16'), LH: ga('B17'), estradiol: ga('B18'),
-        progesterona: ga('B19'), DHEAS: ga('B20'), prolactina: ga('B21'),
-        // Micronutrientes
-        vitD: ga('B23'), B12: ga('B24'), ferritina: ga('B25'),
-        hierroSerico: ga('B26'), magnesio: ga('B27'), zinc: ga('B28'),
-        selenio: ga('B29'), folato: ga('B30'),
-        // Metabolismo
-        glucosa: ga('B32'), HbA1c: ga('B33'), insulina: ga('B34'),
-        homaIR: ga('B35'), colTotal: ga('B36'), LDL: ga('B37'),
-        HDL: ga('B38'), trigliceridos: ga('B39'),
-        PCR: ga('B40'), homocisteina: ga('B41'),
-        // Óseo
-        calcio: ga('B43'), fosforo: ga('B44'), PTH: ga('B45'),
-        fosfatasaAlc: ga('B46'), vitK2: ga('B47'),
-        // Hepático/renal
-        ALT: ga('B49'), AST: ga('B50'), GGT: ga('B51'),
-        creatinina: ga('B52'), acidoUrico: ga('B53'),
-      };
-      // Leer suplementación de la hoja de analíticas
-      pacienteData.suplementacionDetalle = [];
-      for(let r=60; r<=74; r++){
-        const nom=ga(`A${r}`); const dosis=ga(`B${r}`); const hora=ga(`D${r}`);
-        if(nom && dosis) pacienteData.suplementacionDetalle.push(`${nom} ${dosis}${hora?' ('+hora+')':''}`);
-      }
-    }
-
-    const wp = wb.Sheets['Plan Nutricional'];
-    if (wp) {
-      const gp = cell => { const c=wp[cell]; return c&&c.v!==undefined?String(c.v):''};
-      pacienteData.calorias = gp('F9');
-      pacienteData.hcG = gp('C14'); pacienteData.proteinasG = gp('C15');
-      pacienteData.lipidosG = gp('C16'); pacienteData.fibraG = gp('C17');
-      pacienteData.nComidas = gp('B30'); pacienteData.tipoPlan = gp('B31');
-      pacienteData.ventanaAyuno = gp('B32');
-      pacienteData.deportes = [];
-      for(let r=22;r<=26;r++){
-        const tipo=wp[`A${r}`]; const freq=wp[`B${r}`]; const intens=wp[`D${r}`];
-        if(freq&&freq.v&&String(freq.v)!=='0')
-          pacienteData.deportes.push(`${tipo?tipo.v:''} ${freq.v}x/sem${intens?' · '+intens.v:''}`);
-      }
-      pacienteData.alimentosPref = [];
-      pacienteData.alimentosProhib = [];
-      for(let r=37;r<=46;r++){
-        const pref=wp[`B${r}`]; const proh=wp[`E${r}`];
-        if(pref&&pref.v) pacienteData.alimentosPref.push(String(pref.v));
-        if(proh&&proh.v) pacienteData.alimentosProhib.push(String(proh.v));
-      }
-      pacienteData.obsMenu = wp['A55']?String(wp['A55'].v||''):'';
-    }
-
-    const ws3 = wb.Sheets['Seguimiento'];
-    if(ws3){
-      for(let r=34;r>=5;r--){
-        const b=ws3[`B${r}`];
-        if(b&&b.v){pacienteData.ultimoPeso=String(b.v);break;}
-      }
-    }
-
-    mostrarFicha();
-    mostrarOK('Excel cargado: '+file.name);
-  } catch(e){
-    mostrarError('Error al leer el Excel. Usa la plantilla PSNF v4.');
-    console.error(e);
-  }
-}
-
-function mostrarFicha() {
-  const p = pacienteData;
-  document.getElementById('fichaTitle').textContent = p.nombre||p.email||'Paciente';
-  if(p.ultimoPeso) document.getElementById('fichaSubtitle').textContent = 'Último peso: '+p.ultimoPeso+' kg';
-  const campos=[
-    ['Diagnóstico',p.diagnostico],['Fase',p.fase],
-    ['Medicación',p.medicacion],['Suplementación',p.suplementacion],
-    ['THS',p.ths],['Tiroides/TSH',p.tiroides],
-    ['Alergias/Intol.',p.alergias],['Objetivos',p.objetivos],
-    ['Peso',p.peso?p.peso+' kg':''],['Altura',p.altura?p.altura+' cm':''],
-    ['Calorías/día',p.calorias?p.calorias+' kcal':''],['Nº comidas',p.nComidas||''],
-  ];
-  document.getElementById('fichaGrid').innerHTML = campos.map(([l,v])=>
-    `<div class="ficha-item"><span class="ficha-label">${l}</span><span class="ficha-valor ${!v?'vacio':''}">${v||'—'}</span></div>`
-  ).join('');
-  document.getElementById('fichaCard').style.display='block';
-  document.getElementById('opcionesCard').style.display='block';
+  mostrarOK('Paciente importada con todos los datos ✓');
 }
 
 // ----- GENERAR MENÚ -----
@@ -645,146 +656,173 @@ async function generarMenu() {
 function construirPrompt(semanas, nivel, pref) {
   const p = pacienteData;
   const a = p.analiticas || {};
+
   const imc = (p.ultimoPeso||p.peso) && p.altura ?
     (parseFloat(p.ultimoPeso||p.peso)/Math.pow(parseFloat(p.altura)/100,2)).toFixed(1) : '?';
-  const ayuno = p.tipoPlan&&p.tipoPlan.toLowerCase().includes('ayuno') ? p.tipoPlan : '';
-  const horaLevo = p.horaLevotiroxina || '';
+
   const tieneHashimoto = (p.tipoHipotiroidismo||'').toLowerCase().includes('hashimoto') ||
                          (p.diagnostico||'').toLowerCase().includes('hashimoto') ||
-                         (parseFloat(a.antiTPO_val||a.antiTPO||'0') > 35);
-  const tieneHipotiroidismo = (p.diagnostico||'').toLowerCase().includes('hipotiroid') ||
-                               (p.tiroides||'').length > 0;
+                         (parseFloat(a.antiTPO_val||'0') > 35);
 
-  // Build analítica summary — only include values that are filled in
+  const horaLevo = p.horaLevotiroxina || '';
+
+  // Construir bloque de analíticas
   const anaBlock = (() => {
     const lines = [];
     const add = (label, val, unit='', alert='') => {
-      if(val && val.trim() && val.trim()!=='0') lines.push(`  · ${label}: ${val}${unit?(' '+unit):''}${alert?' ⚠️ '+alert:''}`);
+      if(val && val.trim() && val.trim()!=='0') lines.push(`  · ${label}: ${val}${unit?' '+unit:''}${alert?' ⚠️ '+alert:''}`);
     };
-    // Tiroides
-    add('TSH', a.TSH, 'mUI/L', parseFloat(a.TSH)>4?'ELEVADA — ajustar metabolismo calórico':parseFloat(a.TSH)<0.4?'BAJA — hipertiroidismo':'');
-    add('T4 libre', a.T4L, 'ng/dL', parseFloat(a.T4L)<0.8?'BAJA — hipotiroidismo establecido':'');
-    add('T3 libre', a.T3L, 'pg/mL', parseFloat(a.T3L)<2.3?'BAJA — incluir selenio, zinc y B12 para conversión T4→T3':'');
-    add('T3 reversa', a.T3r, 'pg/mL', parseFloat(a.T3r)>24?'ELEVADA — antiinflamatoria estricta, evitar estrés oxidativo':'');
-    add('Anti-TPO', a.antiTPO_val||a.antiTPO, 'UI/mL', parseFloat(a.antiTPO_val||a.antiTPO||'0')>35?'POSITIVO — Hashimoto confirmado. Protocolo antiinflamatorio obligatorio':'');
-    // Hormonas
-    add('FSH', a.FSH, 'mUI/mL', parseFloat(a.FSH)>40?'Menopausia confirmada — aumentar fitoestrógenos, calcio':'');
-    add('Estradiol', a.estradiol, 'pg/mL', parseFloat(a.estradiol)<30?'BAJO — incluir semillas de lino, legumbres, fitoestrógenos':'');
-    // Micronutrientes
-    add('Vitamina D', a.vitD, 'ng/mL', parseFloat(a.vitD)<30?'DÉFICIT — priorizar: salmón, sardinas, huevos, setas. Suplementar D3':'');
-    add('Vitamina B12', a.B12, 'pg/mL', parseFloat(a.B12)<500?'BAJO — priorizar: carnes magras, mariscos, huevos (conversión T4→T3)':'');
-    add('Ferritina', a.ferritina, 'ng/mL', parseFloat(a.ferritina)<70?'BAJA — incluir carnes rojas, lentejas, espinacas + vitamina C':'');
-    add('Magnesio', a.magnesio, 'mg/dL', parseFloat(a.magnesio)<1.7?'BAJO — incluir espinacas, semillas calabaza, almendras, chocolate negro':'');
-    add('Zinc', a.zinc, 'μg/dL', parseFloat(a.zinc)<70?'BAJO — incluir ostras, carne, semillas calabaza, garbanzos':'');
-    add('Selenio', a.selenio, 'μg/L', parseFloat(a.selenio)<70?'DÉFICIT — incluir 2 nueces de Brasil/día, atún, huevos':'');
-    // Metabolismo
-    add('Glucosa ayunas', a.glucosa||p.glucosaAyunas, 'mg/dL', parseFloat(a.glucosa||p.glucosaAyunas||'0')>100?'ELEVADA — reducir IG: sin harinas blancas, azúcar. Priorizar verduras, legumbres':'');
-    add('HbA1c', a.HbA1c, '%', parseFloat(a.HbA1c)>5.7?'PREDIABETES — antiinflamatoria, IG bajo, berberina si procede':'');
-    add('LDL colesterol', a.LDL, 'mg/dL', parseFloat(a.LDL)>130?'ELEVADO — aumentar omega-3, fibra soluble, avena, frutos secos':'');
-    add('HDL colesterol', a.HDL, 'mg/dL', parseFloat(a.HDL)<50?'BAJO — aumentar aceite oliva, aguacate, frutos secos, omega-3':'');
-    add('Triglicéridos', a.trigliceridos, 'mg/dL', parseFloat(a.trigliceridos)>150?'ELEVADOS — reducir azúcares, alcohol. Aumentar omega-3':'');
-    add('PCR', a.PCR||p.pcrBasal, 'mg/L', parseFloat(a.PCR||p.pcrBasal||'0')>1?'INFLAMACIÓN — protocolo antiinflamatorio prioritario':'');
-    // Óseo
-    add('Vitamina D (óseo)', a.vitD, 'ng/mL');
-    add('Calcio sérico', a.calcio, 'mg/dL', parseFloat(a.calcio)<8.6?'BAJO — incluir lácteos, sardinas con espina, almendras, col rizada':'');
-    return lines.length ? '\nANALÍTICAS CLÍNICAS (interpretadas por IA):\n' + lines.join('\n') : '';
+    add('TSH', a.TSH, 'mUI/L', parseFloat(a.TSH)>4?'ELEVADA':parseFloat(a.TSH)<0.4?'BAJA':'');
+    add('T4 libre', a.T4L, 'ng/dL', parseFloat(a.T4L)<0.8?'BAJA':'');
+    add('T3 libre', a.T3L, 'pg/mL', parseFloat(a.T3L)<2.3?'BAJA — incluir selenio, zinc':'');
+    add('T3 reversa', a.T3r, 'pg/mL', parseFloat(a.T3r)>24?'ELEVADA — antiinflamatoria estricta':'');
+    add('Anti-TPO', a.antiTPO_val, 'UI/mL', parseFloat(a.antiTPO_val||'0')>35?'HASHIMOTO confirmado':'');
+    add('FSH', a.FSH, 'mUI/mL', parseFloat(a.FSH)>40?'Menopausia confirmada':'');
+    add('Estradiol', a.estradiol, 'pg/mL', parseFloat(a.estradiol)<30?'BAJO — fitoestrógenos':'');
+    add('Vitamina D', a.vitD, 'ng/mL', parseFloat(a.vitD)<30?'DÉFICIT':'');
+    add('B12', a.B12, 'pg/mL', parseFloat(a.B12)<500?'BAJO':'');
+    add('Ferritina', a.ferritina, 'ng/mL', parseFloat(a.ferritina)<70?'BAJA':'');
+    add('Magnesio', a.magnesio, 'mg/dL', parseFloat(a.magnesio)<1.7?'BAJO':'');
+    add('Zinc', a.zinc, 'µg/dL', parseFloat(a.zinc)<70?'BAJO':'');
+    add('Selenio', a.selenio, 'µg/L', parseFloat(a.selenio)<70?'DÉFICIT':'');
+    add('Glucosa', a.glucosa, 'mg/dL', parseFloat(a.glucosa)>100?'ELEVADA — IG bajo':'');
+    add('HbA1c', a.HbA1c, '%', parseFloat(a.HbA1c)>5.7?'PREDIABETES':'');
+    add('LDL', a.LDL, 'mg/dL', parseFloat(a.LDL)>130?'ELEVADO — omega-3, fibra':'');
+    add('HDL', a.HDL, 'mg/dL', parseFloat(a.HDL)<50?'BAJO':'');
+    add('Triglicéridos', a.trigliceridos, 'mg/dL', parseFloat(a.trigliceridos)>150?'ELEVADOS':'');
+    add('PCR', a.PCR, 'mg/L', parseFloat(a.PCR)>1?'INFLAMACIÓN':'');
+    add('Homocisteína', a.homocisteina, 'µmol/L', parseFloat(a.homocisteina)>15?'ELEVADA — B12, folato, B6':'');
+    add('Calcio', a.calcio, 'mg/dL', parseFloat(a.calcio)<8.6?'BAJO':'');
+    add('Vitamina K2', a.vitK2, 'ng/mL');
+    add('ALT', a.ALT, 'U/L', parseFloat(a.ALT)>40?'ELEVADA — hígado':'');
+    add('Creatinina', a.creatinina, 'mg/dL');
+    add('Ácido úrico', a.acidoUrico, 'mg/dL', parseFloat(a.acidoUrico)>6?'ELEVADO — reducir purinas':'');
+    return lines.length ? '\nANALÍTICAS:\n' + lines.join('\n') : '\nNo se han aportado analíticas.';
   })();
 
-  // Suplementación detalle
-  const suppDetalle = p.suplementacionDetalle && p.suplementacionDetalle.length ?
-    p.suplementacionDetalle.join(' | ') : p.suplementacion || 'ninguna';
+  // Preferencias alimentarias detalladas
+  const gustanBloque = [
+    p.proteinasgusta, p.lacteosgusta, p.verdurasgusta,
+    p.frutasgusta, p.cerealsgusta, p.grasasgusta, p.alimentosPref
+  ].filter(Boolean).join(', ');
 
-  // Interaction rules based on levotiroxina time
-  const interaccionesLevo = horaLevo ? `
-REGLAS CRÍTICAS LEVOTIROXINA (toma a las ${horaLevo}):
-- Desayuno: mínimo 60 min después de la toma → mencionar "💊 Levotiroxina con agua a las ${horaLevo}, desayuno no antes de las ${calcularDesayuno(horaLevo)}"
-- NUNCA incluir en el desayuno: leche, zumos, cereales integrales, soja, nueces, café
-- NUNCA combinar en la misma comida que: calcio, hierro, zinc, magnesio (separar ≥ 2h)
-- Si THS: los estrógenos pueden aumentar necesidad de dosis → monitorizar TSH` :
-  `REGLAS LEVOTIROXINA: Si toma levotiroxina, recordar tomarla en ayunas 60 min antes del desayuno.
-- Desayuno: NUNCA incluir leche, zumos, cereales integrales, soja, nueces ni café junto a la toma`;
+  // Deporte
+  const deporteBloque = p.tipoDeporte ?
+    `${p.tipoDeporte} · ${p.frecuenciaDeporte} · ${p.intensidadDeporte} · ${p.duracionDeporte}` :
+    'no indicado';
 
-  return `Eres Paola Sánchez, farmacéutica y nutricionista especialista en menopausia e hipotiroidismo. Genera ${semanas} semana(s) de menú completo PERSONALIZADO basado en los datos clínicos y analíticas de esta paciente.
+  // Levotiroxina
+  const interaccionesLevo = horaLevo ?
+    `REGLAS LEVOTIROXINA (toma a las ${horaLevo}):
+- Desayuno mínimo 60 min después → no antes de las ${calcularDesayuno(horaLevo)}
+- NUNCA en desayuno: leche, café, cereales integrales, soja, nueces, calcio, hierro` :
+    p.tomaNLevotiroxina === 'Sí' ?
+    'Toma levotiroxina (hora no especificada). Recordar: tomarla en ayunas 60 min antes del desayuno. Nunca con leche, café, soja ni calcio.' : '';
 
-═══ DATOS CLÍNICOS ═══
-- Paciente: ${p.nombre||p.email||'Paciente'}
-- Diagnóstico principal: ${p.diagnostico||'no indicado'}
+  // Hábitos que condicionan el menú
+  const habitosBloque = `
+HÁBITOS Y CONTEXTO:
+- Dónde come: ${p.dondecome||'no indicado'}
+- Con quién come: ${p.conquiencome||'no indicado'}
+- Quién cocina: ${p.quiencocina||'no indicado'}
+- Horarios de comidas: ${p.horariosComidas||'no indicado'}
+- Picoteo: ${p.picoteo||'no indicado'}
+- Velocidad al comer: ${p.velocidadComer||'no indicado'}
+- Mayor apetito: ${p.momentoApetito||'no indicado'}
+- Técnicas de cocina: ${p.tecnicasCocina||'no indicado'}
+- Agua: ${p.agua||'no indicado'}
+- Café: ${p.cafe||'no indicado'}`;
+
+  // Bienestar
+  const bienestarBloque = `
+BIENESTAR Y CONTEXTO PSICOLÓGICO:
+- Nivel de energía: ${p.nivelEnergia||'no indicado'}
+- Sueño: ${p.calidadSueno||'no indicado'} · ${p.horasSueno||'?'} horas
+- Digestiones: ${p.digestiones||'no indicado'}
+- Hábito baño: ${p.bano||'no indicado'}
+- Motivación: ${p.motivacion||'no indicada'}
+- Apoyo familiar: ${p.apoyoFamiliar||'no indicado'}
+- Expectativas: ${p.expectativas||'no indicadas'}`;
+
+  return `Eres Paola Sánchez, farmacéutica y nutricionista especialista en menopausia e hipotiroidismo. Genera ${semanas} semana(s) de menú PERSONALIZADO basado en la historia clínica completa de esta paciente.
+
+═══ DATOS PERSONALES ═══
+- Nombre: ${p.nombre||'Paciente'}
+- Email: ${p.email||''}
+- País: ${p.pais||'España'}
+- Motivo de consulta: ${p.motivoConsulta||'no indicado'}
+
+═══ DIAGNÓSTICO Y MEDICACIÓN ═══
+- Diagnóstico: ${p.diagnostico||'no indicado'}
 - Fase menopausia: ${p.fase||'no indicada'}
 - Tipo hipotiroidismo: ${p.tipoHipotiroidismo||'no especificado'}${tieneHashimoto?' → HASHIMOTO CONFIRMADO':''}
-- Síntomas actuales: ${p.sintomas||'no indicados'}
-- THS (terapia hormonal): ${p.ths||'no'}
+- THS: ${p.ths||'no'}
 - Medicación: ${p.medicacion||'ninguna'}
-- Suplementación: ${suppDetalle}
-- ⛔ ALERGIAS/INTOLERANCIAS (NUNCA USAR BAJO NINGÚN CONCEPTO): ${p.alergias||'ninguna'}
-- Objetivos: ${p.objetivos||'no indicados'}
+- Suplementación: ${p.suplementacion||'ninguna'}
+- Patologías asociadas: ${p.patologiasAsociadas||'ninguna'}
+- Antecedentes familiares: ${p.enfermedadesFamilia||'no indicados'}
+- Enfermedades propias: ${p.enfermedadesPropias||'ninguna'}
+${interaccionesLevo ? '\n'+interaccionesLevo : ''}
+
+═══ SÍNTOMAS ACTUALES ═══
+${p.sintomas||'no indicados'}
+${p.otrosSintomas?'Otros: '+p.otrosSintomas:''}
+
+═══ ALERGIAS E INTOLERANCIAS (NUNCA USAR) ═══
+${p.alergias||'ninguna'}${p.alergiasExtra?', '+p.alergiasExtra:''}
+
+═══ MEDIDAS CORPORALES ═══
 - Peso: ${p.ultimoPeso||p.peso||'?'} kg · Altura: ${p.altura||'?'} cm · IMC: ${imc}
-- Cintura: ${p.cintura||'?'} cm · % Grasa: ${p.grasaCorporal||'?'}%
+- Cintura: ${p.cintura||'?'} cm · Cadera: ${p.cadera||'?'} cm
 ${anaBlock}
 
 ═══ PLAN NUTRICIONAL ═══
-- Calorías objetivo: ${p.calorias||'calcular según perfil'} kcal/día
-- HC: ${p.hcG||'?'} g · Proteínas: ${p.proteinasG||'?'} g · Lípidos: ${p.lipidosG||'?'} g · Fibra: ${p.fibraG||'?'} g
 - Nº comidas: ${p.nComidas||'5'}
-- ${ayuno?'PLAN AYUNO: '+ayuno+' — OBLIGATORIO adaptar comidas a la ventana alimentaria indicada':'Sin ayuno intermitente'}
-- Ventana alimentaria: ${p.ventanaAyuno||'sin restricción'}
-- Deporte: ${p.deportes&&p.deportes.length?p.deportes.join(' | '):'no indicado'}
+- Ayuno: ${p.ayuno||'no'} ${p.ventanaAyuno?'· Ventana: '+p.ventanaAyuno:''}
+- Calorías: ${p.calorias||'calcular según perfil'}
+- Deporte: ${deporteBloque}
+${habitosBloque}
+${bienestarBloque}
 
 ═══ PREFERENCIAS ALIMENTARIAS ═══
-- ✅ INCLUIR / Preferidos: ${p.alimentosPref&&p.alimentosPref.length?p.alimentosPref.join(', '):'sin preferencias específicas'}
-- 🚫 EVITAR / Prohibidos: ${p.alimentosProhib&&p.alimentosProhib.length?p.alimentosProhib.join(', '):'ninguno adicional'}
-- Observaciones del plan: ${p.obsMenu||'—'}
-- Notas sesión: ${pref||'—'}
-- Nivel cocina: ${nivel==='sencillo'?'recetas RÁPIDAS máx 20 min, técnicas simples':nivel==='medio'?'recetas de 30-40 min, variadas':'recetas elaboradas, técnicas avanzadas'}
+✅ Le gustan: ${gustanBloque||'no especificado'}
+🚫 NO quiere: ${p.alimentosProhib||'ninguno adicional'}
+- Nivel cocina: ${p.nivelCocinaForm||nivel}
 
-${interaccionesLevo}
+═══ HÁBITOS TÓXICOS ═══
+- Tabaco: ${p.tabaco||'no'}
+- Alcohol: ${p.alcohol||'no'}
 
 ═══ CRITERIOS CLÍNICOS OBLIGATORIOS ═══
 1. ⛔ NUNCA usar alimentos de alergias/intolerancias ni lista de prohibidos
-2. PROTOCOLO TIROIDEO (si hipotiroidismo activo):
-   - Alimentos ricos en yodo: pescados, mariscos, algas (con moderación), huevos, lácteos
-   - Alimentos ricos en selenio: 2 nueces de Brasil/día, atún, sardinas, huevos
-   - Alimentos ricos en zinc: ostras/mariscos, carne, semillas de calabaza
-   - Crucíferas (brócoli, coliflor, col): SOLO cocinadas, máx 1 vez/semana, NUNCA crudas
-   - Soja y derivados: SEPARAR ≥ 4h de levotiroxina, uso muy moderado
-   - Algas en exceso: EVITAR (pueden alterar TSH)
-3. ${tieneHashimoto?'PROTOCOLO HASHIMOTO (OBLIGATORIO):':// conditional
-   'PROTOCOLO ANTIINFLAMATORIO (si PCR o síntomas inflamatorios):'}
-   - Dieta antiinflamatoria estricta: omega-3, cúrcuma, jengibre, verduras de colores
-   - Reducir/eliminar: gluten (si tolerancia comprometida), lácteos de vaca (priorizar cabra/oveja)
-   - Eliminar: azúcar libre, procesados, alcohol, harinas refinadas
-   - Incluir: probióticos/fermentados (kéfir, yogur, chucrut) para eje intestino-tiroides
-4. PROTOCOLO MENOPAUSIA (si fase menopausia indicada):
-   - Proteína de calidad en CADA toma principal (mínimo 25-30g por comida)
-   - Calcio en al menos 2-3 comidas diarias (lácteos, sardinas, almendras, tofu, col rizada)
-   - Fitoestrógenos moderados: lino molido, legumbres, edamame, garbanzos (no soja si hashimoto)
-   - Omega-3: salmón, sardinas, caballa, nueces, semillas chía/lino — mínimo 3 veces/semana
-   - Magnesio en cena: reduce insomnio y calambres (espinacas, almendras, chocolate 85%)
-   - Antioxidantes para hueso: vitamina K2 (verduras hoja verde, quesos curados)
-5. CONTROL GLUCÉMICO (si glucosa o HbA1c elevada):
-   - Índice glucémico bajo: priorizar legumbres, vegetales, proteínas, grasas saludables
-   - Evitar: harinas blancas, arroz blanco, azúcares, zumos, bollería
-   - Incluir: canela, berberina si procede, vinagre de manzana antes comidas
-6. MICRONUTRIENTES DEFICIENTES (basado en analíticas):
-   - Vitamina D baja: salmón, sardinas, huevos, setas shiitake (mínimo 3-4x/semana)
-   - Ferritina baja: carne roja 2x/semana, lentejas, espinacas SIEMPRE con vitamina C
-   - B12 baja: huevos, carne, mariscos diariamente
-   - Selenio bajo: 2 nueces de Brasil/día en desayuno o merienda
-7. DEPORTE Y TIMING NUTRICIONAL:
-   - Pre-entreno: hidratos complejos + proteína ligera (30-60 min antes)
-   - Post-entreno: proteína de calidad + hidratos (dentro de 30-60 min)
-   - Si ejercicio de fuerza: aumentar proteína total diaria
-8. ESTRUCTURA Y VARIEDAD:
-   - NO repetir el mismo desayuno más de 2 veces/semana
-   - NO repetir proteína animal más de 2 días consecutivos
-   - Incluir al menos 5 colores de verduras/frutas diferentes a la semana
-   - Cenas ligeras, baja densidad calórica, sin hidratos refinados
-   - Indicar método de cocción: plancha, vapor, horno, crudo, salteado
+2. ADAPTAR recetas a las técnicas de cocina que usa: ${p.tecnicasCocina||'variadas'}
+3. RESPETAR horarios de comidas indicados: ${p.horariosComidas||'estándar'}
+4. Si come rápido o con ansiedad → incluir consejos de masticación y mindful eating en los consejos
+5. Si sueño malo → priorizar magnesio en cena, triptófano, evitar azúcar por la noche
+6. Si digestiones lentas o gases → evitar crucíferas crudas, legumbres en exceso, combinar bien
+7. Si estreñimiento → aumentar fibra soluble, kiwi en ayunas, agua, probióticos
+8. PROTOCOLO TIROIDEO si aplica: yodo, selenio (2 nueces Brasil/día), zinc, crucíferas solo cocinadas
+9. PROTOCOLO HASHIMOTO si aplica: antiinflamatoria estricta, sin gluten ni lácteos vaca, fermentados
+10. PROTOCOLO MENOPAUSIA si aplica: proteína 25-30g/comida, calcio 2-3x/día, fitoestrógenos, omega-3, magnesio en cena
+11. CONTROL GLUCÉMICO si glucosa o HbA1c elevada: IG bajo, sin harinas blancas ni azúcar
+12. CORREGIR DÉFICITS según analíticas
+13. DEPORTE: pre-entreno hidratos+proteína, post-entreno proteína+hidratos
+14. Cenas ligeras, sin hidratos refinados, favorecen el sueño
+15. Indicar SIEMPRE método de cocción
+16. NO repetir desayuno más de 2 veces/semana
+17. Incluir mínimo 5 colores de verduras/frutas diferentes a la semana
 
-Responde SOLO con JSON válido, sin markdown, sin explicaciones, sin texto antes ni después:
-{"semanas":[{"semana":1,"menu":[{"dia":"Lunes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Martes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Miércoles","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Jueves","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Viernes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Sábado","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Domingo","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."}]}],"consejos":["consejo clínico personalizado basado en analíticas 1","consejo 2","consejo 3","consejo 4","consejo 5"],"lista_compra":{"verduras":["..."],"frutas":["..."],"proteinas":["..."],"lacteos_huevos":["..."],"cereales_legumbres":["..."],"grasas":["..."],"otros":["..."]}}`;
+Responde SOLO con JSON válido, sin markdown, sin texto antes ni después:
+{"semanas":[{"semana":1,"menu":[{"dia":"Lunes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Martes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Miércoles","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Jueves","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Viernes","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Sábado","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."},{"dia":"Domingo","desayuno":"...","media_manana":"...","comida":"...","merienda":"...","cena":"..."}]}],"consejos":["consejo clínico personalizado 1","consejo 2","consejo 3","consejo 4","consejo 5"],"lista_compra":{"verduras":["..."],"frutas":["..."],"proteinas":["..."],"lacteos_huevos":["..."],"cereales_legumbres":["..."],"grasas":["..."],"otros":["..."]}}`;
 }
 
 function calcularDesayuno(horaLevo) {
+  try {
+    const [h, m] = horaLevo.replace('h','').split(':').map(Number);
+    const total = (h * 60) + (m || 0) + 60;
+    return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+  } catch(e) { return 'la hora indicada +60 min'; }
+}
   try {
     const [h, m] = horaLevo.replace('h','').split(':').map(Number);
     const total = (h * 60) + (m || 0) + 60;
