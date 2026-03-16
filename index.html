@@ -300,7 +300,7 @@ header span{color:var(--verde-c);font-size:12px;}
 <script>
 // ⚠️ Sustituye esta clave por la tuya de Anthropic
 const API_KEY = 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;
-const DEFAULT_SHEET_ID = "1mULURhtAv360Ac6_iMPcDjIhufkjpSG8Wo2p-RvUQnw";
+const let sheetId = "1mULURhtAv360Ac6_iMPcDjIhufkjpSG8Wo2p-RvUQnw"; = "1mULURhtAv360Ac6_iMPcDjIhufkjpSG8Wo2p-RvUQnw";
 
 let pacienteData = {};
 let menuGenerado = null;
@@ -321,7 +321,7 @@ let todasPacientes = []; // cache de todas las filas cargadas
 async function cargarDeSheets() {
   const rawInput = document.getElementById('sheetUrl').value.trim();
   const tabSel = document.getElementById('sheetTab').value;
-  let sheetId = DEFAULT_SHEET_ID;
+  let sheetId = let sheetId = "1mULURhtAv360Ac6_iMPcDjIhufkjpSG8Wo2p-RvUQnw";;
   if (rawInput) {
     const m = rawInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
     if (m) sheetId = m[1];
